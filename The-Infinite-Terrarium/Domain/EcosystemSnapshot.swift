@@ -7,6 +7,11 @@ public struct SpeciesStats: Sendable, Codable, Hashable, Identifiable {
     public let count: Int
     public let averageEnergy: Float
     public let hue: Int
+    public let socialDistance: Float
+    public let alignmentWeight: Float
+    public let cohesionWeight: Float
+    public let metabolismRate: Float
+    public let maxSpeed: Float
 
     public var id: Int {
         speciesID

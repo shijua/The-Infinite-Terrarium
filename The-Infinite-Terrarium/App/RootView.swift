@@ -15,6 +15,7 @@ final class RootViewModel: ObservableObject {
     @Published var analyzeQuestion: String = "Why are red organisms disappearing?"
     @Published var analyzeResponse: String = "Tap Analyze to receive a scientific interpretation of the current biome."
     @Published var isAnalyzePresented = false
+    @Published var isGuidePresented = false
     @Published var isAnalyzing = false
     @Published private(set) var actionHint: String = "Feed adds local energy. Mutate retunes dominant species DNA."
     @Published private(set) var feedPulse: FeedPulse?
@@ -253,6 +254,9 @@ struct RootView: View {
                     },
                     onAnalyze: {
                         viewModel.toggleAnalyze()
+                    },
+                    onGuide: {
+                        viewModel.isGuidePresented = true
                     }
                 )
             }
@@ -266,6 +270,12 @@ struct RootView: View {
             withAnimation(.easeOut(duration: 1.2)) {
                 didAppear = true
             }
+        }
+        .sheet(isPresented: $viewModel.isGuidePresented) {
+            TerrariumGuideView(
+                snapshot: viewModel.snapshot,
+                renderParameters: viewModel.renderParameters
+            )
         }
     }
 

@@ -7,19 +7,22 @@ public struct GlassToolbarView: View {
     public let onFeed: () -> Void
     public let onMutate: () -> Void
     public let onAnalyze: () -> Void
+    public let onGuide: () -> Void
 
     public init(
         quality: RenderQualityLevel,
         isCompact: Bool,
         onFeed: @escaping () -> Void,
         onMutate: @escaping () -> Void,
-        onAnalyze: @escaping () -> Void
+        onAnalyze: @escaping () -> Void,
+        onGuide: @escaping () -> Void
     ) {
         self.quality = quality
         self.isCompact = isCompact
         self.onFeed = onFeed
         self.onMutate = onMutate
         self.onAnalyze = onAnalyze
+        self.onGuide = onGuide
     }
 
     public var body: some View {
@@ -56,6 +59,7 @@ public struct GlassToolbarView: View {
                     action: onAnalyze
                 )
 
+                guideButton(compact: false)
                 qualityBadge(compact: false)
             }
 
@@ -92,7 +96,10 @@ public struct GlassToolbarView: View {
                     )
                 }
 
-                qualityBadge(compact: true)
+                HStack(spacing: isCompact ? 8 : 12) {
+                    guideButton(compact: true)
+                    qualityBadge(compact: true)
+                }
             }
         }
         .padding(.horizontal, isCompact ? 10 : 14)
@@ -133,6 +140,20 @@ public struct GlassToolbarView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("toolbar.\(id)")
+    }
+
+    private func guideButton(compact: Bool) -> some View {
+        Button(action: onGuide) {
+            Label("Guide", systemImage: "info.circle.fill")
+                .font(.system(size: compact ? 12 : 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.35), radius: 1, x: 0, y: 1)
+                .padding(.horizontal, compact ? 10 : 12)
+                .padding(.vertical, compact ? 8 : 9)
+                .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: compact ? 8 : 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("toolbar.guide")
     }
 
     private func qualityBadge(compact: Bool) -> some View {

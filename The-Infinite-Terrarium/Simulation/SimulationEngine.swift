@@ -391,7 +391,12 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
                 name: dna.speciesName,
                 count: members.count,
                 averageEnergy: avgEnergy,
-                hue: dna.hue
+                hue: dna.hue,
+                socialDistance: dna.socialDistance,
+                alignmentWeight: dna.alignmentWeight,
+                cohesionWeight: dna.cohesionWeight,
+                metabolismRate: dna.metabolismRate,
+                maxSpeed: dna.maxSpeed
             )
         }
         .sorted { $0.count > $1.count }

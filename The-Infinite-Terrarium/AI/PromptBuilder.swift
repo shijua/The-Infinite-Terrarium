@@ -38,7 +38,7 @@ public enum PromptBuilder {
         - totalBoids: \(context.totalBoids)
         - avgEnergy: \(String(format: "%.3f", context.avgEnergy))
         - extinctionRiskSpeciesIDs: \(context.extinctionRiskSpeciesIDs)
-        - species: \(context.speciesStats.map { "id=\($0.speciesID),name=\($0.name),count=\($0.count),avgEnergy=\(String(format: "%.3f", $0.averageEnergy))" }.joined(separator: " | "))
+        - species: \(context.speciesStats.map { "id=\($0.speciesID),name=\($0.name),count=\($0.count),avgEnergy=\(String(format: "%.3f", $0.averageEnergy)),hue=\($0.hue),socialDistance=\(String(format: "%.2f", $0.socialDistance)),alignment=\(String(format: "%.2f", $0.alignmentWeight)),cohesion=\(String(format: "%.2f", $0.cohesionWeight)),metabolism=\(String(format: "%.2f", $0.metabolismRate)),maxSpeed=\(String(format: "%.0f", $0.maxSpeed))" }.joined(separator: " | "))
         """
     }
 }

@@ -30,6 +30,14 @@ final class The_Infinite_TerrariumUITests: XCTestCase {
         let mutateButton = app.buttons["toolbar.mutate"]
         XCTAssertTrue(mutateButton.exists)
         mutateButton.tap()
+
+        let guideButton = app.buttons["toolbar.guide"]
+        XCTAssertTrue(guideButton.exists)
+        guideButton.tap()
+
+        let doneButton = app.buttons["Done"]
+        XCTAssertTrue(doneButton.waitForExistence(timeout: 3))
+        doneButton.tap()
     }
 
     func testControlsRemainReachableAfterRotation() throws {
