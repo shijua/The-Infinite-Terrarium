@@ -1,6 +1,8 @@
 import SwiftUI
 import Combine
 import simd
+import UIKit
+import os
 
 /// Main UI coordinator that bridges user actions, simulation ticks, and AI output.
 @MainActor
@@ -14,6 +16,7 @@ final class RootViewModel: ObservableObject {
     @Published var analyzeResponse: String = "Tap Analyze to receive a scientific interpretation of the current biome."
     @Published var isAnalyzePresented = false
     @Published var isAnalyzing = false
+    @Published private(set) var actionHint: String = "Feed, mutate, or analyze to perturb the biome."
 
     @Published private(set) var fps: Double = 0
     @Published private(set) var simulationMS: Double = 0
@@ -37,16 +40,31 @@ final class RootViewModel: ObservableObject {
         var rng = DeterministicRNG(seed: deterministicSeed)
         deterministicSeed = rng.nextUInt64()
 
-        let point = SIMD2<Float>(
-            rng.nextFloat(in: worldBounds.min.x...worldBounds.max.x),
-            rng.nextFloat(in: worldBounds.min.y...worldBounds.max.y)
-        )
+        let point: SIMD2<Float>
+        if boids.isEmpty {
+            point = SIMD2<Float>(
+                rng.nextFloat(in: worldBounds.min.x...worldBounds.max.x),
+                rng.nextFloat(in: worldBounds.min.y...worldBounds.max.y)
+            )
+        } else {
+            let centroid = boids.reduce(SIMD2<Float>(repeating: 0)) { partial, boid in
+                partial + boid.position
+            } / Float(boids.count)
+            let jitter = SIMD2<Float>(
+                rng.nextFloat(in: -95...95),
+                rng.nextFloat(in: -95...95)
+            )
+            point = worldBounds.clamp(centroid + jitter)
+        }
 
-        pendingCommands.append(.feed(point: point, amount: 0.18))
+        pendingCommands.append(.feed(point: point, amount: 0.30))
+        actionHint = "Feed pulse delivered near active colony."
     }
 
     func enqueueMutation() {
-        pendingCommands.append(.mutate(targetSpeciesID: nil))
+        let target = snapshot.speciesStats.first?.speciesID
+        pendingCommands.append(.mutate(targetSpeciesID: target))
+        actionHint = "Mutation wave triggered across dominant lineage."
 
         // Mutation also requests an AI-generated species to make the event visible.
         Task {
@@ -69,12 +87,14 @@ final class RootViewModel: ObservableObject {
             let dna = try await aiProvider.generateDNA(context: snapshot)
             pendingCommands.append(.injectSpecies(dna: dna, count: 48))
             analyzeResponse = "Injected \(dna.speciesName). Observe how social distance and metabolism alter the biome."
+            actionHint = "Injected \(dna.speciesName)."
 
             if stage == .mutation {
                 isAnalyzePresented = true
             }
         } catch {
             analyzeResponse = "AI injection failed. Fallback genes were unavailable in this session."
+            actionHint = "Injection failed. Fallback DNA unavailable."
         }
     }
 
@@ -85,8 +105,10 @@ final class RootViewModel: ObservableObject {
         do {
             let text = try await aiProvider.explain(question: analyzeQuestion, context: snapshot)
             analyzeResponse = text
+            actionHint = "Analysis updated."
         } catch {
             analyzeResponse = "Analysis unavailable. The fallback narrator could not complete this request."
+            actionHint = "Analysis failed. Fallback narrator unavailable."
         }
     }
 
@@ -123,6 +145,7 @@ final class RootViewModel: ObservableObject {
         let quality = monitor.recommendedQuality(current: renderParameters.quality)
         if quality != renderParameters.quality {
             renderParameters = .preset(for: quality)
+            actionHint = "Adaptive quality switched to \(quality.rawValue.uppercased())."
         }
 
         // Lowest quality tier enforces a lower boid ceiling to keep frame budget.
@@ -196,6 +219,19 @@ struct RootView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
+                if !viewModel.actionHint.isEmpty {
+                    Text(viewModel.actionHint)
+                        .font(.system(size: isCompact ? 12 : 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.96))
+                        .padding(.horizontal, isCompact ? 12 : 14)
+                        .padding(.vertical, isCompact ? 8 : 10)
+                        .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: isCompact ? 10 : 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: isCompact ? 10 : 12, style: .continuous)
+                                .stroke(Color.white.opacity(0.20), lineWidth: 1)
+                        )
+                }
+
                 GlassToolbarView(
                     namespace: glassNamespace,
                     quality: viewModel.renderParameters.quality,
@@ -217,9 +253,22 @@ struct RootView: View {
             .animation(.spring(duration: 0.32, bounce: 0.16), value: viewModel.isAnalyzePresented)
         }
         .onAppear {
+            requestLandscapeOrientationIfNeeded()
             withAnimation(.easeOut(duration: 1.2)) {
                 didAppear = true
             }
+        }
+    }
+
+    private func requestLandscapeOrientationIfNeeded() {
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }) else {
+            return
+        }
+
+        windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape)) { error in
+            AppLogger.rendering.error("Failed to request landscape orientation: \(error.localizedDescription)")
         }
     }
 }

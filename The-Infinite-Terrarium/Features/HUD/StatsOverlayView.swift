@@ -32,11 +32,11 @@ public struct StatsOverlayView: View {
         }
         .padding(isCompact ? 10 : 12)
         .glassEffect()
-        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: isCompact ? 18 : 22, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 18 : 22, style: .continuous))
+        .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: isCompact ? 12 : 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 12 : 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: isCompact ? 18 : 22, style: .continuous)
-                .stroke(Color.white.opacity(0.16), lineWidth: 1)
+            RoundedRectangle(cornerRadius: isCompact ? 12 : 14, style: .continuous)
+                .stroke(Color.white.opacity(0.20), lineWidth: 1)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -53,6 +53,6 @@ public struct StatsOverlayView: View {
         }
         .padding(.horizontal, isCompact ? 8 : 10)
         .padding(.vertical, isCompact ? 6 : 8)
-        .background(Color.black.opacity(0.26), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
+        .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: isCompact ? 7 : 8, style: .continuous))
     }
 }

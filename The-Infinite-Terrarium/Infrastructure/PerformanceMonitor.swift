@@ -9,6 +9,11 @@ public final class PerformanceMonitor: ObservableObject {
     @Published public private(set) var estimatedRenderMS: Double = 0
 
     private var frameDurations: [Double] = []
+    private var smoothedBudgetMS: Double = 0
+    private var overBudgetStreak = 0
+    private var underBudgetStreak = 0
+    private var qualityCooldownFrames = 0
+    private var lastQuality: RenderQualityLevel?
 
     public init() {}
 
@@ -26,26 +31,73 @@ public final class PerformanceMonitor: ObservableObject {
     }
 
     public func recommendedQuality(current: RenderQualityLevel) -> RenderQualityLevel {
+        if lastQuality != current {
+            lastQuality = current
+            overBudgetStreak = 0
+            underBudgetStreak = 0
+        }
+
+        if qualityCooldownFrames > 0 {
+            qualityCooldownFrames -= 1
+            return current
+        }
+
         // Budget is based on simulation + estimated render time.
         let budget = simulationMS + estimatedRenderMS
+        smoothedBudgetMS = smoothedBudgetMS == 0 ? budget : (smoothedBudgetMS * 0.85 + budget * 0.15)
+
         switch current {
         case .high:
-            if budget > 17.2 {
-                return .medium
+            if smoothedBudgetMS > 17.8 {
+                overBudgetStreak += 1
+            } else {
+                overBudgetStreak = 0
+            }
+            underBudgetStreak = 0
+
+            if overBudgetStreak >= 18 {
+                return switchQuality(to: .medium, cooldownFrames: 120)
             }
         case .medium:
-            if budget > 19.0 {
-                return .low
+            if smoothedBudgetMS > 20.2 {
+                overBudgetStreak += 1
+            } else {
+                overBudgetStreak = 0
             }
-            if budget < 13.5 {
-                return .high
+
+            if smoothedBudgetMS < 12.9 {
+                underBudgetStreak += 1
+            } else {
+                underBudgetStreak = 0
+            }
+
+            if overBudgetStreak >= 24 {
+                return switchQuality(to: .low, cooldownFrames: 180)
+            }
+            if underBudgetStreak >= 120 {
+                return switchQuality(to: .high, cooldownFrames: 120)
             }
         case .low:
-            if budget < 14.8 {
-                return .medium
+            if smoothedBudgetMS < 13.8 {
+                underBudgetStreak += 1
+            } else {
+                underBudgetStreak = 0
+            }
+            overBudgetStreak = 0
+
+            if underBudgetStreak >= 180 {
+                return switchQuality(to: .medium, cooldownFrames: 180)
             }
         }
 
         return current
+    }
+
+    private func switchQuality(to next: RenderQualityLevel, cooldownFrames: Int) -> RenderQualityLevel {
+        overBudgetStreak = 0
+        underBudgetStreak = 0
+        qualityCooldownFrames = cooldownFrames
+        lastQuality = next
+        return next
     }
 }

@@ -269,8 +269,8 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
     }
 
     private func applyFeed(point: SIMD2<Float>, amount: Float, boids: inout [Boid]) {
-        let radius: Float = 130
-        let deltaEnergy = max(0.01, min(0.25, amount))
+        let radius: Float = 210
+        let deltaEnergy = max(0.02, min(0.45, amount))
 
         for index in boids.indices {
             let distanceSq = simd_length_squared(boids[index].position - point)
@@ -286,26 +286,39 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
         speciesByID: inout [Int: SpeciesDNA],
         rng: inout DeterministicRNG
     ) {
-        let candidates = targetSpeciesID.map { [$0] } ?? Array(speciesByID.keys)
-        guard let selected = candidates.randomElement(), let dna = speciesByID[selected] else {
+        let selected: Int
+        if let targetSpeciesID {
+            selected = targetSpeciesID
+        } else {
+            let counts = boids.reduce(into: [Int: Int]()) { partialResult, boid in
+                partialResult[boid.speciesID, default: 0] += 1
+            }
+
+            guard let dominant = counts.max(by: { $0.value < $1.value })?.key else {
+                return
+            }
+            selected = dominant
+        }
+
+        guard let dna = speciesByID[selected] else {
             return
         }
 
         let mutated = SpeciesDNA(
-            speciesName: dna.speciesName + " ",
-            hue: Int((Float(dna.hue) + rng.nextFloat(in: -26...26)).rounded()),
-            socialDistance: dna.socialDistance + rng.nextFloat(in: -0.12...0.12),
-            alignmentWeight: dna.alignmentWeight + rng.nextFloat(in: -0.2...0.2),
-            cohesionWeight: dna.cohesionWeight + rng.nextFloat(in: -0.2...0.2),
-            metabolismRate: dna.metabolismRate + rng.nextFloat(in: -0.18...0.18),
-            maxSpeed: dna.maxSpeed + rng.nextFloat(in: -22...22)
+            speciesName: dna.speciesName + " var.",
+            hue: Int((Float(dna.hue) + rng.nextFloat(in: -32...32)).rounded()),
+            socialDistance: dna.socialDistance + rng.nextFloat(in: -0.16...0.16),
+            alignmentWeight: dna.alignmentWeight + rng.nextFloat(in: -0.24...0.24),
+            cohesionWeight: dna.cohesionWeight + rng.nextFloat(in: -0.24...0.24),
+            metabolismRate: dna.metabolismRate + rng.nextFloat(in: -0.14...0.14),
+            maxSpeed: dna.maxSpeed + rng.nextFloat(in: -28...28)
         )
 
         speciesByID[selected] = mutated
 
         for index in boids.indices where boids[index].speciesID == selected {
-            boids[index].energy = min(1.25, boids[index].energy + 0.05)
-            boids[index].velocity += SIMD2<Float>(rng.nextFloat(in: -12...12), rng.nextFloat(in: -12...12))
+            boids[index].energy = min(1.35, boids[index].energy + 0.12)
+            boids[index].velocity += SIMD2<Float>(rng.nextFloat(in: -20...20), rng.nextFloat(in: -20...20))
         }
     }
 

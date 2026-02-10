@@ -38,7 +38,7 @@ public struct AnalyzePanelView: View {
             TextField("Ask about ecosystem dynamics...", text: $question)
                 .textFieldStyle(.plain)
                 .padding(12)
-                .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: isCompact ? 10 : 12, style: .continuous))
+                .background(Color.black.opacity(0.40), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
                 .foregroundStyle(.white)
                 .font(.system(size: isCompact ? 15 : 16, weight: .medium, design: .rounded))
                 .accessibilityIdentifier("analyze.question")
@@ -76,18 +76,18 @@ public struct AnalyzePanelView: View {
                         .shadow(color: .black.opacity(0.35), radius: 1, x: 0, y: 1)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)
-                        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: isCompact ? 10 : 12, style: .continuous))
+                        .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
                 }
             }
             .frame(minHeight: 72)
         }
         .padding(isCompact ? 12 : 16)
         .glassEffect()
-        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: isCompact ? 22 : 26, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 22 : 26, style: .continuous))
+        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: isCompact ? 14 : 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 14 : 18, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: isCompact ? 22 : 26, style: .continuous)
-                .stroke(Color.white.opacity(0.16), lineWidth: 1)
+            RoundedRectangle(cornerRadius: isCompact ? 14 : 18, style: .continuous)
+                .stroke(Color.white.opacity(0.24), lineWidth: 1)
         )
         .glassEffectID("analyze.panel", in: namespace)
         .frame(maxWidth: isCompact ? .infinity : 520)

@@ -73,8 +73,9 @@ public enum BoidRules {
         boid.position += boid.velocity * deltaTime
         boid.position = wrap(boid.position, in: bounds)
 
-        // Metabolic decay controls lifespan pressure.
-        boid.energy = max(0, boid.energy - dna.metabolismRate * deltaTime)
+        // Scale metabolic drain so species survive long enough for user interaction.
+        let metabolicDrain = dna.metabolismRate * deltaTime * 0.05
+        boid.energy = max(0, boid.energy - metabolicDrain)
     }
 
     private static func steer(from velocity: SIMD2<Float>, to desired: SIMD2<Float>) -> SIMD2<Float> {
