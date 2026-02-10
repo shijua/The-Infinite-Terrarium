@@ -16,7 +16,8 @@ final class RootViewModel: ObservableObject {
     @Published var analyzeResponse: String = "Tap Analyze to receive a scientific interpretation of the current biome."
     @Published var isAnalyzePresented = false
     @Published var isAnalyzing = false
-    @Published private(set) var actionHint: String = "Feed, mutate, or analyze to perturb the biome."
+    @Published private(set) var actionHint: String = "Feed adds local energy. Mutate retunes dominant species DNA."
+    @Published private(set) var feedPulse: FeedPulse?
 
     @Published private(set) var fps: Double = 0
     @Published private(set) var simulationMS: Double = 0
@@ -57,18 +58,27 @@ final class RootViewModel: ObservableObject {
             point = worldBounds.clamp(centroid + jitter)
         }
 
+        let feedRadius: Float = 210
+        let feedRadiusSq = feedRadius * feedRadius
+        let affectedCount = boids.reduce(0) { partialResult, boid in
+            let distanceSq = simd_length_squared(boid.position - point)
+            return partialResult + (distanceSq <= feedRadiusSq ? 1 : 0)
+        }
+
         pendingCommands.append(.feed(point: point, amount: 0.30))
-        actionHint = "Feed pulse delivered near active colony."
+        feedPulse = FeedPulse(worldPoint: point, issuedAtReferenceTime: Date().timeIntervalSinceReferenceDate)
+        actionHint = affectedCount > 0
+            ? "Feed boosted \(affectedCount) nearby organisms."
+            : "Feed pulse queued near colony center."
     }
 
     func enqueueMutation() {
-        let target = snapshot.speciesStats.first?.speciesID
-        pendingCommands.append(.mutate(targetSpeciesID: target))
-        actionHint = "Mutation wave triggered across dominant lineage."
-
-        // Mutation also requests an AI-generated species to make the event visible.
-        Task {
-            await injectSpeciesFromAI(stage: .mutation)
+        if let dominant = snapshot.speciesStats.first {
+            pendingCommands.append(.mutate(targetSpeciesID: dominant.speciesID))
+            actionHint = "Mutate retuned \(dominant.count) organisms in \(dominant.name)."
+        } else {
+            pendingCommands.append(.mutate(targetSpeciesID: nil))
+            actionHint = "Mutate queued. Waiting for stable species clusters."
         }
     }
 
@@ -89,9 +99,6 @@ final class RootViewModel: ObservableObject {
             analyzeResponse = "Injected \(dna.speciesName). Observe how social distance and metabolism alter the biome."
             actionHint = "Injected \(dna.speciesName)."
 
-            if stage == .mutation {
-                isAnalyzePresented = true
-            }
         } catch {
             analyzeResponse = "AI injection failed. Fallback genes were unavailable in this session."
             actionHint = "Injection failed. Fallback DNA unavailable."
@@ -130,6 +137,10 @@ final class RootViewModel: ObservableObject {
         boids = frame.boids
         snapshot = frame.snapshot
         worldBounds = frame.worldBounds
+
+        if let feedPulse, date.timeIntervalSinceReferenceDate - feedPulse.issuedAtReferenceTime > 1.2 {
+            self.feedPulse = nil
+        }
 
         let frameDurationMS = Double(dt * 1000)
         monitor.recordFrame(
@@ -178,7 +189,8 @@ struct RootView: View {
                     snapshot: viewModel.snapshot,
                     worldBounds: viewModel.worldBounds,
                     renderParameters: viewModel.renderParameters,
-                    timelineDate: timeline.date
+                    timelineDate: timeline.date,
+                    feedPulse: viewModel.feedPulse
                 )
                 .opacity(didAppear ? 1 : 0)
                 .scaleEffect(didAppear ? 1 : 1.04)

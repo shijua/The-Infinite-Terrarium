@@ -1,5 +1,15 @@
 import SwiftUI
 
+public struct FeedPulse: Sendable {
+    public let worldPoint: SIMD2<Float>
+    public let issuedAtReferenceTime: TimeInterval
+
+    public init(worldPoint: SIMD2<Float>, issuedAtReferenceTime: TimeInterval) {
+        self.worldPoint = worldPoint
+        self.issuedAtReferenceTime = issuedAtReferenceTime
+    }
+}
+
 /// Primary visual surface that renders background, boids, and shader effects.
 public struct TerrariumCanvasView: View {
     public let boids: [Boid]
@@ -7,19 +17,22 @@ public struct TerrariumCanvasView: View {
     public let worldBounds: SpatialBounds
     public let renderParameters: RenderParameters
     public let timelineDate: Date
+    public let feedPulse: FeedPulse?
 
     public init(
         boids: [Boid],
         snapshot: EcosystemSnapshot,
         worldBounds: SpatialBounds,
         renderParameters: RenderParameters,
-        timelineDate: Date
+        timelineDate: Date,
+        feedPulse: FeedPulse?
     ) {
         self.boids = boids
         self.snapshot = snapshot
         self.worldBounds = worldBounds
         self.renderParameters = renderParameters
         self.timelineDate = timelineDate
+        self.feedPulse = feedPulse
     }
 
     public var body: some View {
@@ -29,6 +42,7 @@ public struct TerrariumCanvasView: View {
             Canvas(opaque: false, colorMode: .extendedLinear, rendersAsynchronously: true) { context, size in
                 drawBackground(in: &context, size: size, time: time)
                 drawOrganisms(in: &context, size: size)
+                drawFeedPulse(in: &context, size: size, time: time)
             }
             .background(
                 LinearGradient(
@@ -114,6 +128,55 @@ public struct TerrariumCanvasView: View {
                 with: .color(Color(hue: hue, saturation: 0.82, brightness: 0.98, opacity: energyAlpha * 0.6))
             )
         }
+    }
+
+    private func drawFeedPulse(in context: inout GraphicsContext, size: CGSize, time: Float) {
+        guard let feedPulse else {
+            return
+        }
+
+        let age = time - Float(feedPulse.issuedAtReferenceTime)
+        guard age >= 0, age <= 1.2 else {
+            return
+        }
+
+        let progress = age / 1.2
+        let alpha = Double(pow(1 - progress, 2)) * 0.8
+
+        let worldSize = worldBounds.size
+        let sx = size.width / CGFloat(max(worldSize.x, 1))
+        let sy = size.height / CGFloat(max(worldSize.y, 1))
+        let normalized = feedPulse.worldPoint - worldBounds.min
+        let center = CGPoint(x: CGFloat(normalized.x) * sx, y: CGFloat(normalized.y) * sy)
+
+        let outerRadius = CGFloat(36 + progress * 220)
+        let innerRadius = CGFloat(18 + progress * 140)
+
+        let outerRect = CGRect(
+            x: center.x - outerRadius,
+            y: center.y - outerRadius,
+            width: outerRadius * 2,
+            height: outerRadius * 2
+        )
+
+        let innerRect = CGRect(
+            x: center.x - innerRadius,
+            y: center.y - innerRadius,
+            width: innerRadius * 2,
+            height: innerRadius * 2
+        )
+
+        context.stroke(
+            Path(ellipseIn: outerRect),
+            with: .color(Color.green.opacity(alpha)),
+            lineWidth: 2
+        )
+
+        context.stroke(
+            Path(ellipseIn: innerRect),
+            with: .color(Color.cyan.opacity(alpha * 0.75)),
+            lineWidth: 1.5
+        )
     }
 
     private func hueForSpecies(_ speciesID: Int) -> Double {

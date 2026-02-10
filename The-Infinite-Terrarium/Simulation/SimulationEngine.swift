@@ -156,8 +156,9 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
         }
 
         let end = ContinuousClock.now
-        let elapsed = Double(start.duration(to: end).components.attoseconds) / 1_000_000_000_000_000
-        let simulationMS = elapsed * 1000
+        let elapsed = start.duration(to: end).components
+        let elapsedSeconds = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1_000_000_000_000_000_000
+        let simulationMS = elapsedSeconds * 1000
 
         return SimulationFrame(
             boids: aliveBoids,
