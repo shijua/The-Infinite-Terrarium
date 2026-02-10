@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Xcode user/state
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+
+# Xcode build outputs
+DerivedData/
+build/
+build-metrics/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local docs/artifacts
+info.pdf
