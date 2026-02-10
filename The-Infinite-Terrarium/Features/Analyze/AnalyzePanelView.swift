@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Expandable AI console for ecosystem explanation and species injection.
 public struct AnalyzePanelView: View {
     public let namespace: Namespace.ID
     @Binding public var question: String

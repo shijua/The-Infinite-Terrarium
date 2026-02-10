@@ -1,5 +1,6 @@
 import Foundation
 
+/// Converts wall-clock timestamps into a bounded simulation delta time.
 public struct FrameStepper: Sendable {
     private var previousDate: Date?
 
@@ -16,6 +17,7 @@ public struct FrameStepper: Sendable {
         let dt = date.timeIntervalSince(previousDate)
         self.previousDate = date
 
+        // Clamp dt to keep simulation numerically stable on frame hitches.
         return Float(max(1.0 / 240.0, min(1.0 / 20.0, dt)))
     }
 }

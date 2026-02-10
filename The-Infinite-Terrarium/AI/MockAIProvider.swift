@@ -1,9 +1,11 @@
 import Foundation
 
+/// Deterministic offline fallback provider used when the on-device model is unavailable.
 public actor MockAIProvider: AIProvider {
     public init() {}
 
     public func generateDNA(context: EcosystemSnapshot) async throws -> SpeciesDNA {
+        // Snapshot-derived seed ensures reproducible outputs for testability.
         let seed = UInt64(max(1, context.totalBoids))
             ^ (UInt64(max(1, Int(context.avgEnergy * 10_000))) << 32)
             ^ UInt64(context.extinctionRiskSpeciesIDs.reduce(0, +))

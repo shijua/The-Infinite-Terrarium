@@ -1,5 +1,6 @@
 import Foundation
 
+/// Aggregated stats for a single species at a frame boundary.
 public struct SpeciesStats: Sendable, Codable, Hashable, Identifiable {
     public let speciesID: Int
     public let name: String
@@ -12,6 +13,7 @@ public struct SpeciesStats: Sendable, Codable, Hashable, Identifiable {
     }
 }
 
+/// Read-only frame summary fed to UI and AI systems.
 public struct EcosystemSnapshot: Sendable, Codable, Hashable {
     public let timestamp: TimeInterval
     public let totalBoids: Int
@@ -19,6 +21,7 @@ public struct EcosystemSnapshot: Sendable, Codable, Hashable {
     public let avgEnergy: Float
     public let extinctionRiskSpeciesIDs: [Int]
 
+    /// Empty state used during startup and edge cases.
     public static let empty = EcosystemSnapshot(
         timestamp: 0,
         totalBoids: 0,

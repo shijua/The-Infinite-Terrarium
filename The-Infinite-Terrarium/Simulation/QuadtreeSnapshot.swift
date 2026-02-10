@@ -1,6 +1,7 @@
 import Foundation
 import simd
 
+/// World-space bounds used by both simulation and rendering transforms.
 public struct SpatialBounds: Sendable, Hashable, Codable {
     public var min: SIMD2<Float>
     public var max: SIMD2<Float>
@@ -35,6 +36,7 @@ public struct SpatialBounds: Sendable, Hashable, Codable {
     }
 }
 
+/// Immutable spatial index built at frame start for lock-free neighbor queries.
 public struct QuadtreeSnapshot: Sendable {
     private struct SpatialPoint: Sendable {
         let index: Int
@@ -63,6 +65,7 @@ public struct QuadtreeSnapshot: Sendable {
             }
 
             if children == nil {
+                // Split once capacity is exceeded so future queries prune aggressively.
                 subdivide()
                 let existing = points
                 points.removeAll(keepingCapacity: true)
@@ -134,6 +137,7 @@ public struct QuadtreeSnapshot: Sendable {
     public init(boids: [Boid], bounds: SpatialBounds, capacity: Int = 16, maxDepth: Int = 8) {
         self.bounds = bounds
 
+        // Store boid indices so lookup remains aligned with the source boid array.
         var mutableRoot = Node(bounds: bounds)
         for (index, boid) in boids.enumerated() {
             let point = SpatialPoint(index: index, position: boid.position)

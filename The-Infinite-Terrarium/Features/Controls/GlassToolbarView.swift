@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Bottom action rail. Triggers the three required interactions: Feed, Mutate, Analyze.
 public struct GlassToolbarView: View {
     public let namespace: Namespace.ID
     public let quality: RenderQualityLevel
@@ -26,6 +27,7 @@ public struct GlassToolbarView: View {
 
     public var body: some View {
         GlassEffectContainer(spacing: isCompact ? 8 : 12) {
+            // Wide layout uses one row; compact layout folds into two rows.
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: isCompact ? 8 : 12) {
                     actionButton(

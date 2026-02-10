@@ -6,6 +6,7 @@ public enum RenderQualityLevel: String, CaseIterable, Sendable {
     case low
 }
 
+/// Tunable rendering knobs grouped by quality tier.
 public struct RenderParameters: Sendable {
     public let quality: RenderQualityLevel
     public let refractionStrength: Float

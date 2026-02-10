@@ -1,6 +1,7 @@
 import Foundation
 import simd
 
+/// Runtime organism state used by simulation and rendering.
 public struct Boid: Sendable, Identifiable, Hashable {
     public let id: Int
     public var speciesID: Int
@@ -22,6 +23,7 @@ public struct Boid: Sendable, Identifiable, Hashable {
         self.energy = max(0.0, energy)
     }
 
+    /// Neighbor query radius used by Boid rules.
     public var sensingRange: Float {
         78
     }

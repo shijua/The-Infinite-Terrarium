@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 
+/// Tracks rolling frame timing and recommends quality level transitions.
 @MainActor
 public final class PerformanceMonitor: ObservableObject {
     @Published public private(set) var fps: Double = 0
@@ -25,6 +26,7 @@ public final class PerformanceMonitor: ObservableObject {
     }
 
     public func recommendedQuality(current: RenderQualityLevel) -> RenderQualityLevel {
+        // Budget is based on simulation + estimated render time.
         let budget = simulationMS + estimatedRenderMS
         switch current {
         case .high:

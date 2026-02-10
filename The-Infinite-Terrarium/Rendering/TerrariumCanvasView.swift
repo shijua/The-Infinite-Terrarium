@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Primary visual surface that renders background, boids, and shader effects.
 public struct TerrariumCanvasView: View {
     public let boids: [Boid]
     public let snapshot: EcosystemSnapshot
@@ -93,6 +94,7 @@ public struct TerrariumCanvasView: View {
     private func drawOrganisms(in context: inout GraphicsContext, size: CGSize) {
         context.blendMode = .plusLighter
 
+        // Map simulation coordinates into canvas pixel space.
         let worldSize = worldBounds.size
         let sx = size.width / CGFloat(max(worldSize.x, 1))
         let sy = size.height / CGFloat(max(worldSize.y, 1))
@@ -115,6 +117,7 @@ public struct TerrariumCanvasView: View {
     }
 
     private func hueForSpecies(_ speciesID: Int) -> Double {
+        // Prefer DNA hue from latest snapshot; fall back to a deterministic hash.
         if let stats = snapshot.speciesStats.first(where: { $0.speciesID == speciesID }) {
             return Double(stats.hue) / 360.0
         }

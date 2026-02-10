@@ -15,11 +15,13 @@ public enum AIProviderError: Error, LocalizedError, Sendable {
     }
 }
 
+/// AI contract used by UI. Both real and mock providers must satisfy this interface.
 public protocol AIProvider: Sendable {
     func generateDNA(context: EcosystemSnapshot) async throws -> SpeciesDNA
     func explain(question: String, context: EcosystemSnapshot) async throws -> String
 }
 
+/// Wrapper that tries on-device model first and deterministically falls back on failure.
 public actor FallbackAIProvider: AIProvider {
     private let primary: (any AIProvider)?
     private let fallback: any AIProvider
@@ -74,6 +76,7 @@ public enum AIProviderFactory {
     }
 }
 
+/// Races an async operation against a timeout task.
 public func withTimeout<T: Sendable>(seconds: Double, operation: @escaping @Sendable () async throws -> T) async throws -> T {
     try await withThrowingTaskGroup(of: T.self) { group in
         group.addTask {

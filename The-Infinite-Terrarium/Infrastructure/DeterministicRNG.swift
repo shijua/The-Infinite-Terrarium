@@ -1,5 +1,6 @@
 import Foundation
 
+/// Seeded PRNG used for reproducible simulation and mock AI behavior.
 public struct DeterministicRNG: Sendable {
     private var state: UInt64
 
@@ -8,6 +9,7 @@ public struct DeterministicRNG: Sendable {
     }
 
     public mutating func nextUInt64() -> UInt64 {
+        // xorshift64* variant with good speed/quality tradeoff for gameplay simulation.
         state ^= state >> 12
         state ^= state << 25
         state ^= state >> 27

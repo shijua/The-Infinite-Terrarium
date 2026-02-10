@@ -1,6 +1,7 @@
 import Foundation
 import simd
 
+/// Reynolds-style flocking rules tuned for fast, bounded mobile simulation.
 public enum BoidRules {
     public static func update(
         boid: inout Boid,
@@ -9,6 +10,7 @@ public enum BoidRules {
         bounds: SpatialBounds,
         deltaTime: Float
     ) {
+        // Radius and weights are derived from species DNA to create trait-specific behavior.
         let separationRadius: Float = 18 + dna.socialDistance * 52
         let alignmentRadius: Float = 62
         let cohesionRadius: Float = 72
@@ -71,6 +73,7 @@ public enum BoidRules {
         boid.position += boid.velocity * deltaTime
         boid.position = wrap(boid.position, in: bounds)
 
+        // Metabolic decay controls lifespan pressure.
         boid.energy = max(0, boid.energy - dna.metabolismRate * deltaTime)
     }
 

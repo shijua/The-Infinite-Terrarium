@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 import simd
 
+/// Main UI coordinator that bridges user actions, simulation ticks, and AI output.
 @MainActor
 final class RootViewModel: ObservableObject {
     @Published private(set) var boids: [Boid] = []
@@ -47,6 +48,7 @@ final class RootViewModel: ObservableObject {
     func enqueueMutation() {
         pendingCommands.append(.mutate(targetSpeciesID: nil))
 
+        // Mutation also requests an AI-generated species to make the event visible.
         Task {
             await injectSpeciesFromAI(stage: .mutation)
         }
@@ -98,6 +100,7 @@ final class RootViewModel: ObservableObject {
 
         let dt = frameStepper.step(at: date)
 
+        // Commands are consumed exactly once at frame boundary.
         let commands = pendingCommands
         pendingCommands.removeAll(keepingCapacity: true)
 
@@ -122,12 +125,17 @@ final class RootViewModel: ObservableObject {
             renderParameters = .preset(for: quality)
         }
 
+        // Lowest quality tier enforces a lower boid ceiling to keep frame budget.
         if quality == .low {
             simulation.trimPopulationIfNeeded(maxCount: 800)
         }
     }
 }
 
+/// Root composition:
+/// 1) Timeline-driven simulation canvas
+/// 2) Top HUD metrics
+/// 3) Bottom glass controls + optional analysis panel
 struct RootView: View {
     @StateObject private var viewModel = RootViewModel()
     @Namespace private var glassNamespace
@@ -140,6 +148,7 @@ struct RootView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
+            // Timeline drives both render animation and simulation stepping.
             TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { timeline in
                 TerrariumCanvasView(
                     boids: viewModel.boids,

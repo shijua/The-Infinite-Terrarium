@@ -2,6 +2,7 @@ import Foundation
 import os
 import simd
 
+/// Frame output consumed by UI. Includes raw boids and aggregated snapshot data.
 public struct SimulationFrame: Sendable {
     public let boids: [Boid]
     public let snapshot: EcosystemSnapshot
@@ -21,6 +22,8 @@ public protocol SimulationEngineProtocol: Sendable {
     func snapshot() -> EcosystemSnapshot
 }
 
+/// High-frequency simulation core.
+/// State mutation is serialized at frame boundaries, while boid updates run in parallel.
 public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendable {
     private struct EngineState: Sendable {
         var boids: [Boid]
@@ -91,6 +94,7 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
         }
     }
 
+    /// Safety valve used by adaptive quality mode to protect frame time.
     public func trimPopulationIfNeeded(maxCount: Int) {
         stateLock.withLock { state in
             guard state.boids.count > maxCount else {
@@ -110,6 +114,7 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
     public func step(deltaTime: Float, commands: [SimulationCommand]) async -> SimulationFrame {
         let start = ContinuousClock.now
 
+        // Copy shared state once, compute off-lock, then swap state at frame end.
         let localState = stateLock.withLock { state in
             state
         }
@@ -121,6 +126,7 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
 
         apply(commands: commands, boids: &workingBoids, speciesByID: &speciesByID, nextBoidID: &nextBoidID, bounds: localState.bounds, rng: &rng)
 
+        // Build an immutable spatial index for lock-free parallel neighbor lookup.
         let snapshot = quadtree.buildSnapshot(boids: workingBoids, bounds: localState.bounds)
 
         let updatedBoids = await updateBoids(
@@ -139,6 +145,7 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
         let nextBoidIDValue = nextBoidID
         let nextRNG = rng
 
+        // Commit next frame state atomically.
         stateLock.withLock { state in
             state.boids = aliveBoids
             state.speciesByID = nextSpeciesByID
@@ -172,6 +179,7 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
                 let end = min(start + batchSize, boids.count)
 
                 group.addTask {
+                    // Each task updates a disjoint index range to avoid shared writes.
                     var batch: [(Int, Boid)] = []
                     batch.reserveCapacity(end - start)
 
@@ -254,6 +262,7 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
         }
 
         if boids.count > 1_200 {
+            // Hard cap for performance budget protection.
             boids.shuffle()
             boids.removeLast(boids.count - 1_200)
         }

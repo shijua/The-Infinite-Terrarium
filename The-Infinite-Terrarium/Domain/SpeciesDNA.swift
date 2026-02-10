@@ -1,5 +1,6 @@
 import Foundation
 
+/// Species-level behavior coefficients shared by all boids in a species.
 public struct SpeciesDNA: Codable, Sendable, Hashable {
     public let speciesName: String
     public let hue: Int
@@ -18,6 +19,7 @@ public struct SpeciesDNA: Codable, Sendable, Hashable {
         metabolismRate: Float,
         maxSpeed: Float
     ) {
+        // Clamp every generated value so physics remains stable.
         self.speciesName = speciesName.isEmpty ? "Species" : speciesName
         self.hue = max(0, min(360, hue))
         self.socialDistance = max(0.0, min(1.0, socialDistance))
@@ -29,6 +31,7 @@ public struct SpeciesDNA: Codable, Sendable, Hashable {
 }
 
 public extension SpeciesDNA {
+    /// Default balanced species used during engine bootstrap.
     static let pioneer = SpeciesDNA(
         speciesName: "Protoflora lucens",
         hue: 145,
@@ -39,6 +42,7 @@ public extension SpeciesDNA {
         maxSpeed: 88
     )
 
+    /// Mid-range roaming species.
     static let drifter = SpeciesDNA(
         speciesName: "Aether drifter",
         hue: 198,
@@ -49,6 +53,7 @@ public extension SpeciesDNA {
         maxSpeed: 116
     )
 
+    /// Fast high-pressure predator profile.
     static let hunter = SpeciesDNA(
         speciesName: "Crimson vorax",
         hue: 8,

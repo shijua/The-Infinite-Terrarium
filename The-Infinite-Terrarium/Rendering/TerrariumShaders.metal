@@ -3,6 +3,7 @@
 
 using namespace metal;
 
+// Subtle biome-wide luminance pulse used to avoid flat static color output.
 [[ stitchable ]] half4 terrariumColorPulse(
     float2 position,
     half4 color,
@@ -20,6 +21,7 @@ using namespace metal;
     );
 }
 
+// Refraction-like layer distortion with optional RGB channel split.
 [[ stitchable ]] half4 terrariumDistortion(
     float2 position,
     SwiftUI::Layer layer,

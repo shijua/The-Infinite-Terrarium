@@ -6,6 +6,7 @@ public enum AIStage: String, Sendable {
     case analysis
 }
 
+/// Prompt templates that inject runtime ecosystem context into both AI paths.
 public enum PromptBuilder {
     public static func dnaPrompt(context: EcosystemSnapshot, stage: AIStage = .mutation) -> String {
         """

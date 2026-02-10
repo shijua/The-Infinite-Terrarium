@@ -3,6 +3,7 @@ import Foundation
 #if canImport(FoundationModels)
 import FoundationModels
 
+/// Structured output contract for model-guided DNA generation.
 @available(iOS 26.0, *)
 @Generable(description: "A digital organism DNA blueprint")
 private struct GeneratedSpeciesDNA {
@@ -28,6 +29,7 @@ private struct GeneratedSpeciesDNA {
     let maxSpeed: Float
 }
 
+/// On-device provider backed by iOS Foundation Models.
 @available(iOS 26.0, *)
 public actor FoundationModelsProvider: AIProvider {
     private let session: LanguageModelSession
@@ -49,6 +51,7 @@ public actor FoundationModelsProvider: AIProvider {
     }
 
     public func generateDNA(context: EcosystemSnapshot) async throws -> SpeciesDNA {
+        // Typed generation avoids manual JSON parsing and keeps value ranges constrained.
         let response = try await session.respond(
             to: PromptBuilder.dnaPrompt(context: context),
             generating: GeneratedSpeciesDNA.self
@@ -76,6 +79,7 @@ public actor FoundationModelsProvider: AIProvider {
 
 #else
 
+/// Compile-time fallback when FoundationModels framework is unavailable.
 public actor FoundationModelsProvider: AIProvider {
     public init?() {
         nil

@@ -1,5 +1,6 @@
 import Foundation
 
+/// Lightweight builder that materializes immutable quadtree snapshots per frame.
 public final class Quadtree {
     public let capacity: Int
     public let maxDepth: Int

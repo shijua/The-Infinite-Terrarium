@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Top-left metrics panel for frame-time and ecosystem health.
 public struct StatsOverlayView: View {
     public let snapshot: EcosystemSnapshot
     public let fps: Double
