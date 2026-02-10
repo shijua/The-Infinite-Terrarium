@@ -68,14 +68,14 @@ final class RootViewModel: ObservableObject {
         pendingCommands.append(.feed(point: point, amount: 0.30))
         feedPulse = FeedPulse(worldPoint: point, issuedAtReferenceTime: Date().timeIntervalSinceReferenceDate)
         actionHint = affectedCount > 0
-            ? "Feed boosted \(affectedCount) nearby organisms."
-            : "Feed pulse queued near colony center."
+            ? "Feed boosted \(affectedCount) nearby organisms with an energy pulse."
+            : "Feed pulse queued near colony center; effect appears when organisms pass through it."
     }
 
     func enqueueMutation() {
         if let dominant = snapshot.speciesStats.first {
             pendingCommands.append(.mutate(targetSpeciesID: dominant.speciesID))
-            actionHint = "Mutate retuned \(dominant.count) organisms in \(dominant.name)."
+            actionHint = "Mutate shifted DNA of \(dominant.name): spacing, speed, and metabolism for \(dominant.count) organisms."
         } else {
             pendingCommands.append(.mutate(targetSpeciesID: nil))
             actionHint = "Mutate queued. Waiting for stable species clusters."
@@ -172,7 +172,6 @@ final class RootViewModel: ObservableObject {
 /// 3) Bottom glass controls + optional analysis panel
 struct RootView: View {
     @StateObject private var viewModel = RootViewModel()
-    @Namespace private var glassNamespace
     @State private var didAppear = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -212,7 +211,6 @@ struct RootView: View {
 
                 if viewModel.isAnalyzePresented {
                     AnalyzePanelView(
-                        namespace: glassNamespace,
                         question: $viewModel.analyzeQuestion,
                         response: viewModel.analyzeResponse,
                         isLoading: viewModel.isAnalyzing,
@@ -245,7 +243,6 @@ struct RootView: View {
                 }
 
                 GlassToolbarView(
-                    namespace: glassNamespace,
                     quality: viewModel.renderParameters.quality,
                     isCompact: isCompact,
                     onFeed: {

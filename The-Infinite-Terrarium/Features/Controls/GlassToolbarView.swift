@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Bottom action rail. Triggers the three required interactions: Feed, Mutate, Analyze.
 public struct GlassToolbarView: View {
-    public let namespace: Namespace.ID
     public let quality: RenderQualityLevel
     public let isCompact: Bool
     public let onFeed: () -> Void
@@ -10,14 +9,12 @@ public struct GlassToolbarView: View {
     public let onAnalyze: () -> Void
 
     public init(
-        namespace: Namespace.ID,
         quality: RenderQualityLevel,
         isCompact: Bool,
         onFeed: @escaping () -> Void,
         onMutate: @escaping () -> Void,
         onAnalyze: @escaping () -> Void
     ) {
-        self.namespace = namespace
         self.quality = quality
         self.isCompact = isCompact
         self.onFeed = onFeed
@@ -26,9 +23,43 @@ public struct GlassToolbarView: View {
     }
 
     public var body: some View {
-        GlassEffectContainer(spacing: isCompact ? 8 : 12) {
-            // Wide layout uses one row; compact layout folds into two rows.
-            ViewThatFits(in: .horizontal) {
+        // Wide layout uses one row; compact layout folds into two rows.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: isCompact ? 8 : 12) {
+                actionButton(
+                    id: "feed",
+                    title: "Feed",
+                    subtitle: "Energy pulse",
+                    symbol: "drop.fill",
+                    tint: .green,
+                    compact: false,
+                    action: onFeed
+                )
+
+                actionButton(
+                    id: "mutate",
+                    title: "Mutate",
+                    subtitle: "Genetic shift",
+                    symbol: "bolt.fill",
+                    tint: .orange,
+                    compact: false,
+                    action: onMutate
+                )
+
+                actionButton(
+                    id: "analyze",
+                    title: "Analyze",
+                    subtitle: "AI report",
+                    symbol: "waveform.path.ecg",
+                    tint: .cyan,
+                    compact: false,
+                    action: onAnalyze
+                )
+
+                qualityBadge(compact: false)
+            }
+
+            VStack(spacing: isCompact ? 8 : 10) {
                 HStack(spacing: isCompact ? 8 : 12) {
                     actionButton(
                         id: "feed",
@@ -36,7 +67,7 @@ public struct GlassToolbarView: View {
                         subtitle: "Energy pulse",
                         symbol: "drop.fill",
                         tint: .green,
-                        compact: false,
+                        compact: true,
                         action: onFeed
                     )
 
@@ -46,7 +77,7 @@ public struct GlassToolbarView: View {
                         subtitle: "Genetic shift",
                         symbol: "bolt.fill",
                         tint: .orange,
-                        compact: false,
+                        compact: true,
                         action: onMutate
                     )
 
@@ -56,57 +87,20 @@ public struct GlassToolbarView: View {
                         subtitle: "AI report",
                         symbol: "waveform.path.ecg",
                         tint: .cyan,
-                        compact: false,
+                        compact: true,
                         action: onAnalyze
                     )
-
-                    qualityBadge(compact: false)
                 }
 
-                VStack(spacing: isCompact ? 8 : 10) {
-                    HStack(spacing: isCompact ? 8 : 12) {
-                        actionButton(
-                            id: "feed",
-                            title: "Feed",
-                            subtitle: "Energy pulse",
-                            symbol: "drop.fill",
-                            tint: .green,
-                            compact: true,
-                            action: onFeed
-                        )
-
-                        actionButton(
-                            id: "mutate",
-                            title: "Mutate",
-                            subtitle: "Genetic shift",
-                            symbol: "bolt.fill",
-                            tint: .orange,
-                            compact: true,
-                            action: onMutate
-                        )
-
-                        actionButton(
-                            id: "analyze",
-                            title: "Analyze",
-                            subtitle: "AI report",
-                            symbol: "waveform.path.ecg",
-                            tint: .cyan,
-                            compact: true,
-                            action: onAnalyze
-                        )
-                    }
-
-                    qualityBadge(compact: true)
-                }
+                qualityBadge(compact: true)
             }
-            .padding(.horizontal, isCompact ? 10 : 14)
-            .padding(.vertical, isCompact ? 10 : 12)
         }
-        .glassEffect()
-        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: isCompact ? 14 : 18, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 14 : 18, style: .continuous))
+        .padding(.horizontal, isCompact ? 10 : 14)
+        .padding(.vertical, isCompact ? 10 : 12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: isCompact ? 14 : 18, style: .continuous)
+            RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous)
                 .stroke(Color.white.opacity(0.24), lineWidth: 1)
         )
     }
@@ -139,8 +133,6 @@ public struct GlassToolbarView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("toolbar.\(id)")
-        .glassEffect()
-        .glassEffectID(id, in: namespace)
     }
 
     private func qualityBadge(compact: Bool) -> some View {
@@ -155,7 +147,5 @@ public struct GlassToolbarView: View {
         .padding(.horizontal, compact ? 8 : 10)
         .padding(.vertical, compact ? 7 : 8)
         .background(Color.black.opacity(0.36), in: RoundedRectangle(cornerRadius: compact ? 8 : 10, style: .continuous))
-        .glassEffect()
-        .glassEffectID("quality", in: namespace)
     }
 }

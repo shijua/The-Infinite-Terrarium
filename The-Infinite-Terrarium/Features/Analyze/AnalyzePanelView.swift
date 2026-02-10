@@ -2,7 +2,6 @@ import SwiftUI
 
 /// Expandable AI console for ecosystem explanation and species injection.
 public struct AnalyzePanelView: View {
-    public let namespace: Namespace.ID
     @Binding public var question: String
     public let response: String
     public let isLoading: Bool
@@ -11,7 +10,6 @@ public struct AnalyzePanelView: View {
     public let onInjectSpecies: () -> Void
 
     public init(
-        namespace: Namespace.ID,
         question: Binding<String>,
         response: String,
         isLoading: Bool,
@@ -19,7 +17,6 @@ public struct AnalyzePanelView: View {
         onAsk: @escaping () -> Void,
         onInjectSpecies: @escaping () -> Void
     ) {
-        self.namespace = namespace
         _question = question
         self.response = response
         self.isLoading = isLoading
@@ -46,19 +43,28 @@ public struct AnalyzePanelView: View {
             HStack(spacing: 10) {
                 Button(action: onAsk) {
                     Label("Analyze", systemImage: "sparkles")
+                        .font(.system(size: isCompact ? 14 : 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.28), radius: 1, x: 0, y: 1)
+                        .padding(.vertical, isCompact ? 10 : 11)
                         .frame(maxWidth: .infinity)
+                        .background(Color.cyan.opacity(0.72), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("analyze.run")
 
                 Button(action: onInjectSpecies) {
                     Label("Inject Species", systemImage: "leaf.fill")
+                        .font(.system(size: isCompact ? 14 : 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.95))
+                        .shadow(color: .black.opacity(0.26), radius: 1, x: 0, y: 1)
+                        .padding(.vertical, isCompact ? 10 : 11)
                         .frame(maxWidth: .infinity)
+                        .background(Color.black.opacity(0.32), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("analyze.inject")
             }
-            .controlSize(isCompact ? .small : .regular)
 
             Group {
                 if isLoading {
@@ -82,14 +88,12 @@ public struct AnalyzePanelView: View {
             .frame(minHeight: 72)
         }
         .padding(isCompact ? 12 : 16)
-        .glassEffect()
-        .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: isCompact ? 14 : 18, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 14 : 18, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: isCompact ? 14 : 18, style: .continuous)
+            RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous)
                 .stroke(Color.white.opacity(0.24), lineWidth: 1)
         )
-        .glassEffectID("analyze.panel", in: namespace)
         .frame(maxWidth: isCompact ? .infinity : 520)
     }
 }

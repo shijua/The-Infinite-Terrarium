@@ -305,22 +305,66 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
             return
         }
 
+        let baseName = normalizedMutationName(from: dna.speciesName)
         let mutated = SpeciesDNA(
-            speciesName: dna.speciesName + " var.",
-            hue: Int((Float(dna.hue) + rng.nextFloat(in: -32...32)).rounded()),
-            socialDistance: dna.socialDistance + rng.nextFloat(in: -0.16...0.16),
-            alignmentWeight: dna.alignmentWeight + rng.nextFloat(in: -0.24...0.24),
-            cohesionWeight: dna.cohesionWeight + rng.nextFloat(in: -0.24...0.24),
-            metabolismRate: dna.metabolismRate + rng.nextFloat(in: -0.14...0.14),
-            maxSpeed: dna.maxSpeed + rng.nextFloat(in: -28...28)
+            speciesName: "\(baseName) var",
+            hue: Int((Float(dna.hue) + rng.nextFloat(in: -20...20)).rounded()),
+            socialDistance: max(0.30, dna.socialDistance + rng.nextFloat(in: -0.08...0.10)),
+            alignmentWeight: dna.alignmentWeight + rng.nextFloat(in: -0.12...0.12),
+            cohesionWeight: min(0.95, dna.cohesionWeight + rng.nextFloat(in: -0.18...0.08)),
+            metabolismRate: dna.metabolismRate + rng.nextFloat(in: -0.08...0.10),
+            maxSpeed: dna.maxSpeed + rng.nextFloat(in: -18...18)
         )
 
         speciesByID[selected] = mutated
 
-        for index in boids.indices where boids[index].speciesID == selected {
-            boids[index].energy = min(1.35, boids[index].energy + 0.12)
-            boids[index].velocity += SIMD2<Float>(rng.nextFloat(in: -20...20), rng.nextFloat(in: -20...20))
+        let selectedIndices = boids.indices.filter { boids[$0].speciesID == selected }
+        guard !selectedIndices.isEmpty else {
+            return
         }
+
+        var centroid = SIMD2<Float>(repeating: 0)
+        for index in selectedIndices {
+            centroid += boids[index].position
+        }
+        centroid /= Float(selectedIndices.count)
+
+        for index in selectedIndices {
+            let delta = boids[index].position - centroid
+            let outwardDirection: SIMD2<Float>
+            if simd_length_squared(delta) < 0.0001 {
+                let random = SIMD2<Float>(
+                    rng.nextFloat(in: -1...1),
+                    rng.nextFloat(in: -1...1)
+                )
+                outwardDirection = simd_length_squared(random) < 0.0001 ? SIMD2<Float>(1, 0) : simd_normalize(random)
+            } else {
+                outwardDirection = simd_normalize(delta)
+            }
+
+            let outwardImpulse = outwardDirection * rng.nextFloat(in: 22...46)
+            let jitter = SIMD2<Float>(
+                rng.nextFloat(in: -9...9),
+                rng.nextFloat(in: -9...9)
+            )
+            boids[index].energy = min(1.35, boids[index].energy + 0.10)
+            boids[index].velocity += outwardImpulse + jitter
+        }
+    }
+
+    private func normalizedMutationName(from rawName: String) -> String {
+        var name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        while name.hasSuffix(" var.") || name.hasSuffix(" var") {
+            if name.hasSuffix(" var.") {
+                name.removeLast(5)
+            } else {
+                name.removeLast(4)
+            }
+            name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        return name.isEmpty ? "Species" : name
     }
 
     private static func buildSnapshot(
