@@ -79,7 +79,7 @@ public actor FoundationModelsProvider: AIProvider {
 
 #else
 
-/// Compile-time fallback when FoundationModels framework is unavailable.
+/// Compile-time unavailable placeholder when FoundationModels framework is unavailable.
 public actor FoundationModelsProvider: AIProvider {
     public init?() {
         nil

@@ -101,8 +101,8 @@ final class RootViewModel: ObservableObject {
             actionHint = "Injected \(dna.speciesName)."
 
         } catch {
-            analyzeResponse = "AI injection failed. Fallback genes were unavailable in this session."
-            actionHint = "Injection failed. Fallback DNA unavailable."
+            analyzeResponse = "AI injection unavailable. On-device Foundation Model is not available on this device."
+            actionHint = "Injection failed. On-device AI unavailable."
         }
     }
 
@@ -115,8 +115,8 @@ final class RootViewModel: ObservableObject {
             analyzeResponse = text
             actionHint = "Analysis updated."
         } catch {
-            analyzeResponse = "Analysis unavailable. The fallback narrator could not complete this request."
-            actionHint = "Analysis failed. Fallback narrator unavailable."
+            analyzeResponse = "Analysis unavailable. On-device Foundation Model is currently unavailable."
+            actionHint = "Analysis failed. On-device AI unavailable."
         }
     }
 
