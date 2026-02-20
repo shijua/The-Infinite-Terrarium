@@ -32,29 +32,10 @@ public enum PromptBuilder {
 
     public static func dnaPrompt(context: EcosystemSnapshot, stage: AIStage = .mutation) -> String {
         let dominant = context.speciesStats.first
-        let dominantShare = {
-            guard let dominant else { return 0.0 }
-            return Double(Float(dominant.count) / Float(max(1, context.totalBoids)))
-        }()
-
-        let topSpecies = context.speciesStats
-            .prefix(4)
-            .map { "\($0.name)(\($0.count),E\(String(format: "%.2f", $0.averageEnergy)))" }
-            .joined(separator: ", ")
-
-        let atRiskSpecies = context.speciesStats
-            .filter { context.extinctionRiskSpeciesIDs.contains($0.speciesID) }
-            .map { "\($0.name)(\($0.count),E\(String(format: "%.2f", $0.averageEnergy)))" }
-            .joined(separator: ", ")
-
-        let stageDirective: String = switch stage {
-        case .intro:
-            "Create a balanced newcomer that can coexist and increase species variety."
-        case .mutation:
-            "Create a non-dominant niche strategy that reduces monoculture pressure."
-        case .analysis:
-            "Prioritize rescuing vulnerable species with supportive, low-metabolism flocking dynamics."
-        }
+        let dominantShare = dominantShare(in: context)
+        let topSpecies = topSpeciesSummary(in: context, limit: 4)
+        let atRiskSpecies = atRiskSpeciesSummary(in: context)
+        let stageDirective = singleStageDirective(for: stage)
 
         let pressureFlags = [
             dominantShare > 0.55 ? "dominance-high" : nil,
@@ -68,7 +49,7 @@ public enum PromptBuilder {
         Design ONE new digital organism DNA.
         Objective: increase biodiversity and reduce extinction risk while staying physically plausible.
         Stage strategy: \(stageDirective)
-        Ecosystem: \(context.totalBoids) organisms, avg energy \(String(format: "%.2f", context.avgEnergy))
+        Ecosystem: \(context.totalBoids) organisms, avg energy \(fmt2(context.avgEnergy))
         Dominant species: \(dominant.map { "\($0.name)(\($0.count))" } ?? "none")
         At-risk species: \(atRiskSpecies.isEmpty ? "none" : atRiskSpecies)
         Top species: \(topSpecies.isEmpty ? "none" : topSpecies)
@@ -97,7 +78,7 @@ public enum PromptBuilder {
                 }
 
                 let rows = matches.prefix(6).map { species in
-                    "\(species.name)(id \(species.speciesID), pop \(species.count), energy \(String(format: "%.2f", species.averageEnergy)), hue \(species.hue))"
+                    "\(species.name)(id \(species.speciesID), pop \(species.count), energy \(fmt2(species.averageEnergy)), hue \(species.hue))"
                 }.joined(separator: "; ")
                 return "\(band.name): \(rows)"
             }
@@ -106,9 +87,7 @@ public enum PromptBuilder {
 
         let speciesDetails = context.speciesStats
             .prefix(12)
-            .map { species in
-                "\(species.name) | id \(species.speciesID) | pop \(species.count) | energy \(String(format: "%.2f", species.averageEnergy)) | hue \(species.hue) (\(hueLabel(for: species.hue))) | social \(String(format: "%.2f", species.socialDistance)) | align \(String(format: "%.2f", species.alignmentWeight)) | cohesion \(String(format: "%.2f", species.cohesionWeight)) | metabolism \(String(format: "%.2f", species.metabolismRate)) | maxSpeed \(String(format: "%.0f", species.maxSpeed))"
-            }
+            .map(speciesDetailLine)
             .joined(separator: " || ")
 
         return """
@@ -120,7 +99,7 @@ public enum PromptBuilder {
         If the user asks about a specific color/species, answer that target first with exact numbers from the data.
         If data is missing, say it directly instead of guessing.
         Question: \(question)
-        Ecosystem: \(context.totalBoids) organisms, avg energy \(String(format: "%.2f", context.avgEnergy))
+        Ecosystem: \(context.totalBoids) organisms, avg energy \(fmt2(context.avgEnergy))
         Color band reference by hue:
         red 0-20/340-360 | orange 21-45 | yellow 46-70 | green 71-170 | cyan 171-200 | blue 201-250 | purple 251-300 | pink 301-339
         \(colorFocus)
@@ -131,31 +110,15 @@ public enum PromptBuilder {
     public static func dnaClusterPrompt(context: EcosystemSnapshot, stage: AIStage = .mutation, count: Int) -> String {
         let target = max(1, count)
         let dominant = context.speciesStats.first
-
-        let topSpecies = context.speciesStats
-            .prefix(4)
-            .map { "\($0.name)(\($0.count),E\(String(format: "%.2f", $0.averageEnergy)))" }
-            .joined(separator: ", ")
-
-        let atRiskSpecies = context.speciesStats
-            .filter { context.extinctionRiskSpeciesIDs.contains($0.speciesID) }
-            .map { "\($0.name)(\($0.count),E\(String(format: "%.2f", $0.averageEnergy)))" }
-            .joined(separator: ", ")
-
-        let stageDirective: String = switch stage {
-        case .intro:
-            "Create balanced newcomers that can coexist and increase species variety."
-        case .mutation:
-            "Create non-dominant niche strategies that reduce monoculture pressure."
-        case .analysis:
-            "Prioritize rescuing vulnerable species with supportive, low-metabolism flocking dynamics."
-        }
+        let topSpecies = topSpeciesSummary(in: context, limit: 4)
+        let atRiskSpecies = atRiskSpeciesSummary(in: context)
+        let stageDirective = clusterStageDirective(for: stage)
 
         return """
         Design EXACTLY \(target) distinct digital organism DNA entries in one response.
         Objective: increase biodiversity and reduce extinction risk while staying physically plausible.
         Stage strategy: \(stageDirective)
-        Ecosystem: \(context.totalBoids) organisms, avg energy \(String(format: "%.2f", context.avgEnergy))
+        Ecosystem: \(context.totalBoids) organisms, avg energy \(fmt2(context.avgEnergy))
         Dominant species: \(dominant.map { "\($0.name)(\($0.count))" } ?? "none")
         At-risk species: \(atRiskSpecies.isEmpty ? "none" : atRiskSpecies)
         Top species: \(topSpecies.isEmpty ? "none" : topSpecies)
@@ -200,5 +163,62 @@ public enum PromptBuilder {
     private static func normalizedHue(_ hue: Int) -> Int {
         let value = hue % 360
         return value < 0 ? value + 360 : value
+    }
+
+    private static func dominantShare(in context: EcosystemSnapshot) -> Double {
+        guard let dominant = context.speciesStats.first else { return 0.0 }
+        return Double(Float(dominant.count) / Float(max(1, context.totalBoids)))
+    }
+
+    private static func topSpeciesSummary(in context: EcosystemSnapshot, limit: Int) -> String {
+        context.speciesStats
+            .prefix(limit)
+            .map(compactSpeciesSummaryToken)
+            .joined(separator: ", ")
+    }
+
+    private static func atRiskSpeciesSummary(in context: EcosystemSnapshot) -> String {
+        context.speciesStats
+            .filter { context.extinctionRiskSpeciesIDs.contains($0.speciesID) }
+            .map(compactSpeciesSummaryToken)
+            .joined(separator: ", ")
+    }
+
+    private static func compactSpeciesSummaryToken(_ species: SpeciesStats) -> String {
+        "\(species.name)(\(species.count),E\(fmt2(species.averageEnergy)))"
+    }
+
+    private static func speciesDetailLine(_ species: SpeciesStats) -> String {
+        "\(species.name) | id \(species.speciesID) | pop \(species.count) | energy \(fmt2(species.averageEnergy)) | hue \(species.hue) (\(hueLabel(for: species.hue))) | social \(fmt2(species.socialDistance)) | align \(fmt2(species.alignmentWeight)) | cohesion \(fmt2(species.cohesionWeight)) | metabolism \(fmt2(species.metabolismRate)) | maxSpeed \(fmt0(species.maxSpeed))"
+    }
+
+    private static func singleStageDirective(for stage: AIStage) -> String {
+        switch stage {
+        case .intro:
+            "Create a balanced newcomer that can coexist and increase species variety."
+        case .mutation:
+            "Create a non-dominant niche strategy that reduces monoculture pressure."
+        case .analysis:
+            "Prioritize rescuing vulnerable species with supportive, low-metabolism flocking dynamics."
+        }
+    }
+
+    private static func clusterStageDirective(for stage: AIStage) -> String {
+        switch stage {
+        case .intro:
+            "Create balanced newcomers that can coexist and increase species variety."
+        case .mutation:
+            "Create non-dominant niche strategies that reduce monoculture pressure."
+        case .analysis:
+            "Prioritize rescuing vulnerable species with supportive, low-metabolism flocking dynamics."
+        }
+    }
+
+    private static func fmt2(_ value: Float) -> String {
+        String(format: "%.2f", value)
+    }
+
+    private static func fmt0(_ value: Float) -> String {
+        String(format: "%.0f", value)
     }
 }

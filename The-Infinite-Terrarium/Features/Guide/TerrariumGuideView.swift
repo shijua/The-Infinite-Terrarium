@@ -2,10 +2,83 @@ import SwiftUI
 
 /// In-app quick guide for controls, quality levels, and species traits.
 public struct TerrariumGuideView: View {
+    private struct GuideItem {
+        let title: String
+        let subtitle: String
+    }
+
+    private struct KeyValueItem {
+        let key: String
+        let value: String
+    }
+
+    private static let overlayMetricItems: [GuideItem] = [
+        GuideItem(
+            title: "FPS",
+            subtitle: "Current frame rate. Computed from a rolling average of recent frame durations."
+        ),
+        GuideItem(
+            title: "Sim",
+            subtitle: "Per-frame simulation time in milliseconds (boid rules, neighbor lookup, and state updates)."
+        ),
+        GuideItem(
+            title: "Render",
+            subtitle: "Estimated render cost in milliseconds from the current quality preset (not real-time GPU profiling)."
+        ),
+        GuideItem(
+            title: "Quality",
+            subtitle: "Current render tier (HIGH / MEDIUM / LOW). Adaptive quality can switch tiers based on frame budget."
+        ),
+        GuideItem(
+            title: "Population",
+            subtitle: "Total number of living boids in the current frame."
+        ),
+        GuideItem(
+            title: "Avg Energy",
+            subtitle: "Average energy across all living boids."
+        ),
+        GuideItem(
+            title: "At Risk",
+            subtitle: "Number of at-risk species (species count, not individual count). A species is at risk if count < 24 or averageEnergy < 0.23."
+        )
+    ]
+
+    private static let interactionItems: [GuideItem] = [
+        GuideItem(
+            title: "Feed",
+            subtitle: "Tap directly on the simulation surface to add a local energy pulse at that location. There is no Feed toolbar button."
+        ),
+        GuideItem(
+            title: "Mutate",
+            subtitle: "Retunes dominant species DNA: social distance, alignment, cohesion, metabolism, and max speed."
+        ),
+        GuideItem(
+            title: "Analyze",
+            subtitle: "Asks the AI narrator to explain current ecosystem state using latest snapshot."
+        ),
+        GuideItem(
+            title: "Guide",
+            subtitle: "Opening this panel pauses simulation updates. Close Guide to resume the ecosystem."
+        )
+    ]
+
     public let snapshot: EcosystemSnapshot
     public let renderParameters: RenderParameters
     @AppStorage("hud.showPerformanceOverlay") private var isStatsOverlayVisible = true
     @Environment(\.dismiss) private var dismiss
+
+    private var adaptiveQualityRows: [KeyValueItem] {
+        [
+            KeyValueItem(key: "Current Quality", value: renderParameters.quality.rawValue.uppercased()),
+            KeyValueItem(key: "Refraction Strength", value: fmt1(renderParameters.refractionStrength)),
+            KeyValueItem(key: "Chromatic Offset", value: fmt1(renderParameters.chromaticOffset)),
+            KeyValueItem(key: "Color Pulse", value: fmt2(renderParameters.colorPulse)),
+            KeyValueItem(key: "Organism Radius", value: fmt1(renderParameters.organismRadius)),
+            KeyValueItem(key: "Particle Alpha", value: fmt2(renderParameters.backgroundParticleAlpha)),
+            KeyValueItem(key: "Max Sample Offset", value: String(format: "%.1f", renderParameters.maxSampleOffset)),
+            KeyValueItem(key: "Estimated Render Cost", value: "\(fmt1(renderParameters.estimatedRenderMS)) ms")
+        ]
+    }
 
     public init(snapshot: EcosystemSnapshot, renderParameters: RenderParameters) {
         self.snapshot = snapshot
@@ -30,52 +103,17 @@ public struct TerrariumGuideView: View {
                     }
 
                     sectionCard(title: "Performance Overlay Metrics") {
-                        guideRow(
-                            title: "FPS",
-                            subtitle: "Current frame rate. Computed from a rolling average of recent frame durations."
-                        )
-                        guideRow(
-                            title: "Sim",
-                            subtitle: "Per-frame simulation time in milliseconds (boid rules, neighbor lookup, and state updates)."
-                        )
-                        guideRow(
-                            title: "Render",
-                            subtitle: "Estimated render cost in milliseconds from the current quality preset (not real-time GPU profiling)."
-                        )
-                        guideRow(
-                            title: "Quality",
-                            subtitle: "Current render tier (HIGH / MEDIUM / LOW). Adaptive quality can switch tiers based on frame budget."
-                        )
-                        guideRow(
-                            title: "Population",
-                            subtitle: "Total number of living boids in the current frame."
-                        )
-                        guideRow(
-                            title: "Avg Energy",
-                            subtitle: "Average energy across all living boids."
-                        )
-                        guideRow(
-                            title: "At Risk",
-                            subtitle: "Number of at-risk species (species count, not individual count). A species is at risk if count < 24 or averageEnergy < 0.23."
-                        )
+                        guideRows(Self.overlayMetricItems)
                     }
 
                     sectionCard(title: "Interaction Controls") {
-                        guideRow(title: "Feed", subtitle: "Tap directly on the simulation surface to add a local energy pulse at that location. There is no Feed toolbar button.")
-                        guideRow(title: "Mutate", subtitle: "Retunes dominant species DNA: social distance, alignment, cohesion, metabolism, and max speed.")
-                        guideRow(title: "Analyze", subtitle: "Asks the AI narrator to explain current ecosystem state using latest snapshot.")
-                        guideRow(title: "Guide", subtitle: "Opening this panel pauses simulation updates. Close Guide to resume the ecosystem.")
+                        guideRows(Self.interactionItems)
                     }
 
                     sectionCard(title: "Adaptive Quality") {
-                        keyValueRow(key: "Current Quality", value: renderParameters.quality.rawValue.uppercased())
-                        keyValueRow(key: "Refraction Strength", value: String(format: "%.1f", renderParameters.refractionStrength))
-                        keyValueRow(key: "Chromatic Offset", value: String(format: "%.1f", renderParameters.chromaticOffset))
-                        keyValueRow(key: "Color Pulse", value: String(format: "%.2f", renderParameters.colorPulse))
-                        keyValueRow(key: "Organism Radius", value: String(format: "%.1f", renderParameters.organismRadius))
-                        keyValueRow(key: "Particle Alpha", value: String(format: "%.2f", renderParameters.backgroundParticleAlpha))
-                        keyValueRow(key: "Max Sample Offset", value: String(format: "%.1f", renderParameters.maxSampleOffset))
-                        keyValueRow(key: "Estimated Render Cost", value: String(format: "%.1f ms", renderParameters.estimatedRenderMS))
+                        ForEach(adaptiveQualityRows, id: \.key) { row in
+                            keyValueRow(key: row.key, value: row.value)
+                        }
                         Text("Meaning: higher values improve visual richness but increase GPU cost; adaptive quality automatically switches between HIGH / MEDIUM / LOW to keep frame budget stable. Current quality is shown in the top-left performance overlay.")
                             .font(.system(size: 13, weight: .regular, design: .rounded))
                             .foregroundStyle(.secondary)
@@ -129,6 +167,12 @@ public struct TerrariumGuideView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private func guideRows(_ items: [GuideItem]) -> some View {
+        ForEach(items, id: \.title) { item in
+            guideRow(title: item.title, subtitle: item.subtitle)
+        }
+    }
+
     private func keyValueRow(key: String, value: String) -> some View {
         HStack {
             Text(key)
@@ -155,15 +199,31 @@ public struct TerrariumGuideView: View {
             }
 
             keyValueRow(key: "Population", value: "\(species.count)")
-            keyValueRow(key: "Average Energy", value: String(format: "%.2f", species.averageEnergy))
+            keyValueRow(key: "Average Energy", value: fmt2(species.averageEnergy))
             keyValueRow(key: "Hue", value: "\(species.hue)")
-            keyValueRow(key: "Social Distance", value: String(format: "%.2f", species.socialDistance))
-            keyValueRow(key: "Alignment Weight", value: String(format: "%.2f", species.alignmentWeight))
-            keyValueRow(key: "Cohesion Weight", value: String(format: "%.2f", species.cohesionWeight))
-            keyValueRow(key: "Metabolism Rate", value: String(format: "%.2f", species.metabolismRate))
-            keyValueRow(key: "Max Speed", value: String(format: "%.0f", species.maxSpeed))
+            keyValueRow(key: "Social Distance", value: fmt2(species.socialDistance))
+            keyValueRow(key: "Alignment Weight", value: fmt2(species.alignmentWeight))
+            keyValueRow(key: "Cohesion Weight", value: fmt2(species.cohesionWeight))
+            keyValueRow(key: "Metabolism Rate", value: fmt2(species.metabolismRate))
+            keyValueRow(key: "Max Speed", value: fmt0(species.maxSpeed))
         }
         .padding(12)
         .background(Color.black.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private func fmt2(_ value: Float) -> String {
+        String(format: "%.2f", value)
+    }
+
+    private func fmt1(_ value: Float) -> String {
+        String(format: "%.1f", value)
+    }
+
+    private func fmt1(_ value: Double) -> String {
+        String(format: "%.1f", value)
+    }
+
+    private func fmt0(_ value: Float) -> String {
+        String(format: "%.0f", value)
     }
 }

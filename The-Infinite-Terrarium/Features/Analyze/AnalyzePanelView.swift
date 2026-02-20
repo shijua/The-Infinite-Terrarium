@@ -11,6 +11,48 @@ public struct AnalyzePanelView: View {
     public let onAsk: () -> Void
     public let onInjectSpecies: () -> Void
 
+    private static let allowedFenceLanguages: Set<String> = ["", "markdown", "md", "gfm", "text", "txt"]
+    private static let markdownTextColor = Color.white.opacity(0.95)
+    private static let markdownTheme: Theme = Theme.basic
+        .text {
+            ForegroundColor(Self.markdownTextColor)
+            BackgroundColor(nil)
+        }
+        .strong {
+            ForegroundColor(.white)
+            FontWeight(.semibold)
+        }
+        .emphasis {
+            ForegroundColor(Self.markdownTextColor)
+            FontStyle(.italic)
+        }
+        .code {
+            ForegroundColor(Self.markdownTextColor)
+            BackgroundColor(nil)
+            FontFamilyVariant(.monospaced)
+        }
+        .link {
+            ForegroundColor(.white)
+            UnderlineStyle(.single)
+        }
+        .codeBlock { configuration in
+            configuration.label
+                .markdownTextStyle {
+                    ForegroundColor(Self.markdownTextColor)
+                    BackgroundColor(nil)
+                    FontFamilyVariant(.monospaced)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .relativeLineSpacing(.em(0.15))
+                .relativePadding(.leading, length: .rem(1))
+                .markdownMargin(top: .zero, bottom: .em(1))
+        }
+
+    private var cornerRadius: CGFloat { isCompact ? 8 : 10 }
+    private var containerPadding: CGFloat { isCompact ? 12 : 16 }
+    private var buttonVerticalPadding: CGFloat { isCompact ? 10 : 11 }
+    private var responseMaxHeight: CGFloat { isCompact ? 220 : 300 }
+
     public init(
         question: Binding<String>,
         response: String,
@@ -50,31 +92,25 @@ public struct AnalyzePanelView: View {
                 .accessibilityIdentifier("analyze.question")
 
             HStack(spacing: 10) {
-                Button(action: onAsk) {
-                    Label("Analyze", systemImage: "sparkles")
-                        .font(.system(size: isCompact ? 14 : 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .shadow(color: .black.opacity(0.28), radius: 1, x: 0, y: 1)
-                        .padding(.vertical, isCompact ? 10 : 11)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.cyan.opacity(isAIBusy ? 0.35 : 0.72), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .disabled(isAIBusy)
-                .accessibilityIdentifier("analyze.run")
+                actionButton(
+                    title: "Analyze",
+                    systemImage: "sparkles",
+                    foreground: .white,
+                    background: Color.cyan.opacity(isAIBusy ? 0.35 : 0.72),
+                    shadowOpacity: 0.28,
+                    accessibilityID: "analyze.run",
+                    action: onAsk
+                )
 
-                Button(action: onInjectSpecies) {
-                    Label("Inject Species", systemImage: "leaf.fill")
-                        .font(.system(size: isCompact ? 14 : 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(isAIBusy ? 0.40 : 0.95))
-                        .shadow(color: .black.opacity(0.26), radius: 1, x: 0, y: 1)
-                        .padding(.vertical, isCompact ? 10 : 11)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.black.opacity(0.32), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .disabled(isAIBusy)
-                .accessibilityIdentifier("analyze.inject")
+                actionButton(
+                    title: "Inject Species",
+                    systemImage: "leaf.fill",
+                    foreground: .white.opacity(isAIBusy ? 0.40 : 0.95),
+                    background: Color.black.opacity(0.32),
+                    shadowOpacity: 0.26,
+                    accessibilityID: "analyze.inject",
+                    action: onInjectSpecies
+                )
             }
 
             Group {
@@ -89,16 +125,16 @@ public struct AnalyzePanelView: View {
                     .foregroundStyle(.white.opacity(0.9))
                 } else {
                     responseContent
-                        .frame(maxHeight: isCompact ? 220 : 300, alignment: .top)
+                        .frame(maxHeight: responseMaxHeight, alignment: .top)
                 }
             }
             .frame(minHeight: 72)
         }
-        .padding(isCompact ? 12 : 16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
+        .padding(containerPadding)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(Color.white.opacity(0.24), lineWidth: 1)
         )
         .frame(maxWidth: isCompact ? .infinity : 520)
@@ -107,7 +143,7 @@ public struct AnalyzePanelView: View {
     private var responseContent: some View {
         ScrollView(.vertical, showsIndicators: true) {
             Markdown(normalizedResponse)
-                .markdownTheme(whiteMarkdownTheme)
+                .markdownTheme(Self.markdownTheme)
                 .tint(.white)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -116,41 +152,27 @@ public struct AnalyzePanelView: View {
         .padding(12)
     }
 
-    private var whiteMarkdownTheme: Theme {
-        Theme.basic
-            .text {
-                ForegroundColor(.white.opacity(0.95))
-                BackgroundColor(nil)
-            }
-            .strong {
-                ForegroundColor(.white)
-                FontWeight(.semibold)
-            }
-            .emphasis {
-                ForegroundColor(.white.opacity(0.95))
-                FontStyle(.italic)
-            }
-            .code {
-                ForegroundColor(.white.opacity(0.95))
-                BackgroundColor(nil)
-                FontFamilyVariant(.monospaced)
-            }
-            .link {
-                ForegroundColor(.white)
-                UnderlineStyle(.single)
-            }
-            .codeBlock { configuration in
-                configuration.label
-                    .markdownTextStyle {
-                        ForegroundColor(.white.opacity(0.95))
-                        BackgroundColor(nil)
-                        FontFamilyVariant(.monospaced)
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                    .relativeLineSpacing(.em(0.15))
-                    .relativePadding(.leading, length: .rem(1))
-                    .markdownMargin(top: .zero, bottom: .em(1))
-            }
+    private func actionButton(
+        title: String,
+        systemImage: String,
+        foreground: Color,
+        background: Color,
+        shadowOpacity: Double,
+        accessibilityID: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: isCompact ? 14 : 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(foreground)
+                .shadow(color: .black.opacity(shadowOpacity), radius: 1, x: 0, y: 1)
+                .padding(.vertical, buttonVerticalPadding)
+                .frame(maxWidth: .infinity)
+                .background(background, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(isAIBusy)
+        .accessibilityIdentifier(accessibilityID)
     }
 
     private var normalizedResponse: String {
@@ -178,8 +200,7 @@ public struct AnalyzePanelView: View {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
 
-        let allowed: Set<String> = ["", "markdown", "md", "gfm", "text", "txt"]
-        guard allowed.contains(language) else { return text }
+        guard Self.allowedFenceLanguages.contains(language) else { return text }
 
         return lines.dropFirst().dropLast().joined(separator: "\n")
     }

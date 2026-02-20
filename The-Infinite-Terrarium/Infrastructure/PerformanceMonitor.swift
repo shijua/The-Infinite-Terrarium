@@ -15,6 +15,18 @@ public final class PerformanceMonitor: ObservableObject {
     private var qualityCooldownFrames = 0
     private var lastQuality: RenderQualityLevel?
 
+    private enum Threshold {
+        static let highOverBudgetMS = 17.8
+        static let mediumOverBudgetMS = 20.2
+        static let mediumUnderBudgetMS = 12.9
+        static let lowUnderBudgetMS = 13.8
+
+        static let highToMediumStreak = 18
+        static let mediumToLowStreak = 24
+        static let mediumToHighStreak = 120
+        static let lowToMediumStreak = 180
+    }
+
     public init() {}
 
     public func recordFrame(simulationMS: Double, estimatedRenderMS: Double, frameDurationMS: Double) {
@@ -33,8 +45,7 @@ public final class PerformanceMonitor: ObservableObject {
     public func recommendedQuality(current: RenderQualityLevel) -> RenderQualityLevel {
         if lastQuality != current {
             lastQuality = current
-            overBudgetStreak = 0
-            underBudgetStreak = 0
+            resetStreaks()
         }
 
         if qualityCooldownFrames > 0 {
@@ -48,44 +59,27 @@ public final class PerformanceMonitor: ObservableObject {
 
         switch current {
         case .high:
-            if smoothedBudgetMS > 17.8 {
-                overBudgetStreak += 1
-            } else {
-                overBudgetStreak = 0
-            }
+            overBudgetStreak = nextStreak(overBudgetStreak, condition: smoothedBudgetMS > Threshold.highOverBudgetMS)
             underBudgetStreak = 0
 
-            if overBudgetStreak >= 18 {
+            if overBudgetStreak >= Threshold.highToMediumStreak {
                 return switchQuality(to: .medium, cooldownFrames: 120)
             }
         case .medium:
-            if smoothedBudgetMS > 20.2 {
-                overBudgetStreak += 1
-            } else {
-                overBudgetStreak = 0
-            }
+            overBudgetStreak = nextStreak(overBudgetStreak, condition: smoothedBudgetMS > Threshold.mediumOverBudgetMS)
+            underBudgetStreak = nextStreak(underBudgetStreak, condition: smoothedBudgetMS < Threshold.mediumUnderBudgetMS)
 
-            if smoothedBudgetMS < 12.9 {
-                underBudgetStreak += 1
-            } else {
-                underBudgetStreak = 0
-            }
-
-            if overBudgetStreak >= 24 {
+            if overBudgetStreak >= Threshold.mediumToLowStreak {
                 return switchQuality(to: .low, cooldownFrames: 180)
             }
-            if underBudgetStreak >= 120 {
+            if underBudgetStreak >= Threshold.mediumToHighStreak {
                 return switchQuality(to: .high, cooldownFrames: 120)
             }
         case .low:
-            if smoothedBudgetMS < 13.8 {
-                underBudgetStreak += 1
-            } else {
-                underBudgetStreak = 0
-            }
+            underBudgetStreak = nextStreak(underBudgetStreak, condition: smoothedBudgetMS < Threshold.lowUnderBudgetMS)
             overBudgetStreak = 0
 
-            if underBudgetStreak >= 180 {
+            if underBudgetStreak >= Threshold.lowToMediumStreak {
                 return switchQuality(to: .medium, cooldownFrames: 180)
             }
         }
@@ -94,10 +88,18 @@ public final class PerformanceMonitor: ObservableObject {
     }
 
     private func switchQuality(to next: RenderQualityLevel, cooldownFrames: Int) -> RenderQualityLevel {
-        overBudgetStreak = 0
-        underBudgetStreak = 0
+        resetStreaks()
         qualityCooldownFrames = cooldownFrames
         lastQuality = next
         return next
+    }
+
+    private func resetStreaks() {
+        overBudgetStreak = 0
+        underBudgetStreak = 0
+    }
+
+    private func nextStreak(_ current: Int, condition: Bool) -> Int {
+        condition ? current + 1 : 0
     }
 }

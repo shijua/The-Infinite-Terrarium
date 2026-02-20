@@ -2,12 +2,39 @@ import SwiftUI
 
 /// Top-left metrics panel for frame-time and ecosystem health.
 public struct StatsOverlayView: View {
+    private struct Metric {
+        let title: String
+        let value: String
+    }
+
     public let snapshot: EcosystemSnapshot
     public let fps: Double
     public let simulationMS: Double
     public let renderMS: Double
     public let quality: RenderQualityLevel
     public let isCompact: Bool
+
+    private var rowSpacing: CGFloat { isCompact ? 6 : 8 }
+    private var panelPadding: CGFloat { isCompact ? 10 : 12 }
+    private var panelCornerRadius: CGFloat { isCompact ? 8 : 10 }
+    private var chipCornerRadius: CGFloat { isCompact ? 7 : 8 }
+
+    private var performanceMetrics: [Metric] {
+        [
+            Metric(title: "FPS", value: String(format: "%.0f", fps)),
+            Metric(title: "Sim", value: String(format: "%.1f ms", simulationMS)),
+            Metric(title: "Render", value: String(format: "%.1f ms", renderMS)),
+            Metric(title: "Quality", value: quality.rawValue.uppercased())
+        ]
+    }
+
+    private var ecosystemMetrics: [Metric] {
+        [
+            Metric(title: "Population", value: "\(snapshot.totalBoids)"),
+            Metric(title: "Avg Energy", value: String(format: "%.2f", snapshot.avgEnergy)),
+            Metric(title: "At Risk", value: "\(snapshot.extinctionRiskSpeciesIDs.count)")
+        ]
+    }
 
     public init(
         snapshot: EcosystemSnapshot,
@@ -26,28 +53,26 @@ public struct StatsOverlayView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: isCompact ? 6 : 8) {
-            HStack(spacing: isCompact ? 6 : 8) {
-                metricChip(title: "FPS", value: String(format: "%.0f", fps))
-                metricChip(title: "Sim", value: String(format: "%.1f ms", simulationMS))
-                metricChip(title: "Render", value: String(format: "%.1f ms", renderMS))
-                metricChip(title: "Quality", value: quality.rawValue.uppercased())
-            }
-
-            HStack(spacing: isCompact ? 6 : 8) {
-                metricChip(title: "Population", value: "\(snapshot.totalBoids)")
-                metricChip(title: "Avg Energy", value: String(format: "%.2f", snapshot.avgEnergy))
-                metricChip(title: "At Risk", value: "\(snapshot.extinctionRiskSpeciesIDs.count)")
-            }
+        VStack(alignment: .leading, spacing: rowSpacing) {
+            metricRow(performanceMetrics)
+            metricRow(ecosystemMetrics)
         }
-        .padding(isCompact ? 10 : 12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
+        .padding(panelPadding)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous)
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
                 .stroke(Color.white.opacity(0.20), lineWidth: 1)
         )
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func metricRow(_ metrics: [Metric]) -> some View {
+        HStack(spacing: rowSpacing) {
+            ForEach(metrics, id: \.title) { metric in
+                metricChip(title: metric.title, value: metric.value)
+            }
+        }
     }
 
     private func metricChip(title: String, value: String) -> some View {
@@ -62,6 +87,6 @@ public struct StatsOverlayView: View {
         }
         .padding(.horizontal, isCompact ? 8 : 10)
         .padding(.vertical, isCompact ? 6 : 8)
-        .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: isCompact ? 7 : 8, style: .continuous))
+        .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: chipCornerRadius, style: .continuous))
     }
 }

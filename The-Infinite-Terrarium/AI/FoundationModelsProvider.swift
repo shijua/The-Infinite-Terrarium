@@ -47,6 +47,8 @@ public actor FoundationModelsProvider: AIProvider {
         Keep outputs concise and analytical.
         Prioritize physically plausible flocking traits and ecosystem balance.
         """
+    private static let contextWindowRetryFailureMessage =
+        "Context window exceeded even after reset. Try restarting the app to clear conversation history."
 
     private static func makeSession() -> LanguageModelSession {
         LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
@@ -87,37 +89,16 @@ public actor FoundationModelsProvider: AIProvider {
     }
 
     public func generateDNA(context: EcosystemSnapshot, stage: AIStage) async throws -> SpeciesDNA {
-        do {
-            return try await _generateDNA(context: context, stage: stage)
-        } catch let error as LanguageModelSession.GenerationError {
-            if case .exceededContextWindowSize = error {
-                resetSession()
-                do {
-                    return try await _generateDNA(context: context, stage: stage)
-                } catch {
-                    // Second attempt failed — give up and propagate clear error
-                    throw AIProviderError.unavailableWithReason("Context window exceeded even after reset. Try restarting the app to clear conversation history.")
-                }
-            }
-            throw error
+        try await withContextWindowRetry {
+            try await _generateDNA(context: context, stage: stage)
         }
     }
 
     public func generateDNACluster(context: EcosystemSnapshot, stage: AIStage, count: Int) async throws -> [SpeciesDNA] {
         let target = max(1, count)
 
-        do {
-            return try await _generateDNACluster(context: context, stage: stage, count: target)
-        } catch let error as LanguageModelSession.GenerationError {
-            if case .exceededContextWindowSize = error {
-                resetSession()
-                do {
-                    return try await _generateDNACluster(context: context, stage: stage, count: target)
-                } catch {
-                    throw AIProviderError.unavailableWithReason("Context window exceeded even after reset. Try restarting the app to clear conversation history.")
-                }
-            }
-            throw error
+        return try await withContextWindowRetry {
+            try await _generateDNACluster(context: context, stage: stage, count: target)
         }
     }
 
@@ -162,19 +143,26 @@ public actor FoundationModelsProvider: AIProvider {
     }
 
     public func explain(question: String, context: EcosystemSnapshot) async throws -> String {
+        try await withContextWindowRetry {
+            try await _explain(question: question, context: context)
+        }
+    }
+
+    private func withContextWindowRetry<T>(_ operation: () async throws -> T) async throws -> T {
         do {
-            return try await _explain(question: question, context: context)
+            return try await operation()
         } catch let error as LanguageModelSession.GenerationError {
-            if case .exceededContextWindowSize = error {
-                resetSession()
-                do {
-                    return try await _explain(question: question, context: context)
-                } catch {
-                    // Second attempt failed — give up and propagate clear error
-                    throw AIProviderError.unavailableWithReason("Context window exceeded even after reset. Try restarting the app to clear conversation history.")
-                }
+            guard case .exceededContextWindowSize = error else {
+                throw error
             }
-            throw error
+
+            resetSession()
+
+            do {
+                return try await operation()
+            } catch {
+                throw AIProviderError.unavailableWithReason(Self.contextWindowRetryFailureMessage)
+            }
         }
     }
 

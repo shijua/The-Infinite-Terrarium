@@ -50,16 +50,20 @@ public actor UnavailableAIProvider: AIProvider {
         self.reason = reason
     }
 
-    public func generateDNA(context: EcosystemSnapshot, stage: AIStage) async throws -> SpeciesDNA {
+    private func unavailable<T>() throws -> T {
         throw AIProviderError.unavailableWithReason(reason)
+    }
+
+    public func generateDNA(context: EcosystemSnapshot, stage: AIStage) async throws -> SpeciesDNA {
+        try unavailable()
     }
 
     public func generateDNACluster(context: EcosystemSnapshot, stage: AIStage, count: Int) async throws -> [SpeciesDNA] {
-        throw AIProviderError.unavailableWithReason(reason)
+        try unavailable()
     }
 
     public func explain(question: String, context: EcosystemSnapshot) async throws -> String {
-        throw AIProviderError.unavailableWithReason(reason)
+        try unavailable()
     }
 }
 
