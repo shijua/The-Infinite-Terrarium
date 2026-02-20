@@ -1,4 +1,5 @@
 import SwiftUI
+import MarkdownUI
 
 /// Expandable AI console for ecosystem explanation and species injection.
 public struct AnalyzePanelView: View {
@@ -81,13 +82,7 @@ public struct AnalyzePanelView: View {
                     .font(.system(size: isCompact ? 12 : 13, weight: .medium, design: .rounded))
                     .foregroundStyle(.white.opacity(0.9))
                 } else {
-                    Text(response)
-                        .font(.system(size: isCompact ? 13 : 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.95))
-                        .shadow(color: .black.opacity(0.35), radius: 1, x: 0, y: 1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
+                    responseContent
                 }
             }
             .frame(minHeight: 72)
@@ -100,5 +95,68 @@ public struct AnalyzePanelView: View {
                 .stroke(Color.white.opacity(0.24), lineWidth: 1)
         )
         .frame(maxWidth: isCompact ? .infinity : 520)
+    }
+
+    private var responseContent: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            Markdown(normalizedResponse)
+                .markdownTheme(.gitHub)
+                .foregroundStyle(.white.opacity(0.95))
+                .tint(.cyan)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
+    }
+
+    private var normalizedResponse: String {
+        normalizeResponse(response)
+    }
+
+    private func normalizeResponse(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withoutFence = unwrapMarkdownFenceIfNeeded(trimmed)
+        return decodeEscapedNewlinesIfNeeded(withoutFence)
+    }
+
+    private func unwrapMarkdownFenceIfNeeded(_ text: String) -> String {
+        guard text.hasPrefix("```"), text.hasSuffix("```") else { return text }
+
+        let lines = text.components(separatedBy: .newlines)
+        guard lines.count >= 2 else { return text }
+
+        let firstLine = lines[0].trimmingCharacters(in: .whitespaces)
+        let lastLine = lines[lines.count - 1].trimmingCharacters(in: .whitespaces)
+        guard firstLine.hasPrefix("```"), lastLine == "```" else { return text }
+
+        let language = firstLine
+            .dropFirst(3)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        let allowed: Set<String> = ["", "markdown", "md", "gfm", "text", "txt"]
+        guard allowed.contains(language) else { return text }
+
+        return lines.dropFirst().dropLast().joined(separator: "\n")
+    }
+
+    private func decodeEscapedNewlinesIfNeeded(_ text: String) -> String {
+        guard !text.contains("\n"), text.contains("\\n") else { return text }
+
+        var output = text
+        if output.hasPrefix("\""), output.hasSuffix("\""), output.count >= 2 {
+            output.removeFirst()
+            output.removeLast()
+        }
+
+        output = output
+            .replacingOccurrences(of: "\\r\\n", with: "\n")
+            .replacingOccurrences(of: "\\n", with: "\n")
+            .replacingOccurrences(of: "\\t", with: "\t")
+            .replacingOccurrences(of: "\\\"", with: "\"")
+
+        return output
     }
 }

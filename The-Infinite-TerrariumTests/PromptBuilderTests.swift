@@ -97,4 +97,74 @@ final class PromptBuilderTests: XCTestCase {
         XCTAssertTrue(prompt.contains("EXACTLY 5"))
         XCTAssertTrue(prompt.contains("Make entries behaviorally distinct"))
     }
+
+    func testExplainPromptSupportsFlexibleOutputFormat() {
+        let context = EcosystemSnapshot(
+            timestamp: 64,
+            totalBoids: 120,
+            speciesStats: [
+                SpeciesStats(
+                    speciesID: 1,
+                    name: "Crimson vorax",
+                    count: 48,
+                    averageEnergy: 0.41,
+                    hue: 8,
+                    socialDistance: 0.82,
+                    alignmentWeight: 0.52,
+                    cohesionWeight: 0.36,
+                    metabolismRate: 1.12,
+                    maxSpeed: 150
+                )
+            ],
+            avgEnergy: 0.39,
+            extinctionRiskSpeciesIDs: []
+        )
+
+        let prompt = PromptBuilder.explainPrompt(question: "Please answer in table format.", context: context)
+        XCTAssertTrue(prompt.contains("Answer in English only."))
+        XCTAssertTrue(prompt.contains("GitHub-flavored Markdown"))
+        XCTAssertTrue(prompt.contains("Do not wrap the entire response in triple-backtick code fences."))
+        XCTAssertTrue(prompt.contains("Follow the user's requested output format and structure"))
+        XCTAssertTrue(prompt.contains("Species detail table"))
+    }
+
+    func testExplainPromptIncludesColorFocusedSpeciesData() {
+        let context = EcosystemSnapshot(
+            timestamp: 180,
+            totalBoids: 260,
+            speciesStats: [
+                SpeciesStats(
+                    speciesID: 1,
+                    name: "Crimson vorax",
+                    count: 72,
+                    averageEnergy: 0.44,
+                    hue: 8,
+                    socialDistance: 0.82,
+                    alignmentWeight: 0.52,
+                    cohesionWeight: 0.36,
+                    metabolismRate: 1.12,
+                    maxSpeed: 150
+                ),
+                SpeciesStats(
+                    speciesID: 2,
+                    name: "Aether drifter",
+                    count: 66,
+                    averageEnergy: 0.51,
+                    hue: 198,
+                    socialDistance: 0.48,
+                    alignmentWeight: 0.72,
+                    cohesionWeight: 0.66,
+                    metabolismRate: 0.86,
+                    maxSpeed: 116
+                )
+            ],
+            avgEnergy: 0.46,
+            extinctionRiskSpeciesIDs: []
+        )
+
+        let prompt = PromptBuilder.explainPrompt(question: "red species data", context: context)
+        XCTAssertTrue(prompt.contains("Color query detected"))
+        XCTAssertTrue(prompt.contains("red:"))
+        XCTAssertTrue(prompt.contains("Crimson vorax"))
+    }
 }

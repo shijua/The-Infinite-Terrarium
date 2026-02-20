@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C1PKGBLD0000000000000001 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C1PKGPRD0000000000000001 /* MarkdownUI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		C1TSTPRX0000000000000001 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C1PKGBLD0000000000000001 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -115,6 +120,7 @@
 			);
 			name = "The-Infinite-Terrarium";
 			packageProductDependencies = (
+				C1PKGPRD0000000000000001 /* MarkdownUI */,
 			);
 			productName = "The-Infinite-Terrarium";
 			productReference = B1D768802F3B65780003CD6D /* The-Infinite-Terrarium.app */;
@@ -197,6 +203,9 @@
 				Base,
 			);
 			mainGroup = B1D768772F3B65780003CD6D;
+			packageReferences = (
+				C1PKGREF0000000000000001 /* XCLocalSwiftPackageReference "Vendor/MarkdownPackages/swift-markdown-ui" */,
+			);
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B1D768812F3B65780003CD6D /* Products */;
@@ -330,6 +339,21 @@
 			targetProxy = C1TSTPRX0000000000000002 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C1PKGREF0000000000000001 /* XCLocalSwiftPackageReference "Vendor/MarkdownPackages/swift-markdown-ui" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "Vendor/MarkdownPackages/swift-markdown-ui";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C1PKGPRD0000000000000001 /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C1PKGREF0000000000000001 /* XCLocalSwiftPackageReference "Vendor/MarkdownPackages/swift-markdown-ui" */;
+			productName = MarkdownUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		B1D768892F3B65790003CD6D /* Debug */ = {
