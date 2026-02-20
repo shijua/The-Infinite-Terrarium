@@ -76,7 +76,7 @@ public struct AnalyzePanelView: View {
                     HStack(spacing: 8) {
                         ProgressView()
                             .tint(.white)
-                        Text("Synthesizing explanation...")
+                        Text("AI is processing...")
                     }
                     .font(.system(size: isCompact ? 12 : 13, weight: .medium, design: .rounded))
                     .foregroundStyle(.white.opacity(0.9))

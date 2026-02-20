@@ -4,6 +4,7 @@ import SwiftUI
 public struct TerrariumGuideView: View {
     public let snapshot: EcosystemSnapshot
     public let renderParameters: RenderParameters
+    @AppStorage("hud.showPerformanceOverlay") private var isStatsOverlayVisible = true
     @Environment(\.dismiss) private var dismiss
 
     public init(snapshot: EcosystemSnapshot, renderParameters: RenderParameters) {
@@ -15,10 +16,24 @@ public struct TerrariumGuideView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    sectionCard(title: "HUD Visibility") {
+                        Toggle(isOn: $isStatsOverlayVisible) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Show Performance Overlay")
+                                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                Text("Controls the top-left FPS / Sim / Render / Quality panel on the main screen.")
+                                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .toggleStyle(.switch)
+                    }
+
                     sectionCard(title: "Interaction Controls") {
-                        guideRow(title: "Feed", subtitle: "Adds a local energy pulse. Organisms inside the pulse radius gain energy.")
+                        guideRow(title: "Feed", subtitle: "Tap directly on the simulation surface to add a local energy pulse at that location. There is no Feed toolbar button.")
                         guideRow(title: "Mutate", subtitle: "Retunes dominant species DNA: social distance, alignment, cohesion, metabolism, and max speed.")
                         guideRow(title: "Analyze", subtitle: "Asks the AI narrator to explain current ecosystem state using latest snapshot.")
+                        guideRow(title: "Guide", subtitle: "Opening this panel pauses simulation updates. Close Guide to resume the ecosystem.")
                     }
 
                     sectionCard(title: "Adaptive Quality") {
@@ -30,7 +45,7 @@ public struct TerrariumGuideView: View {
                         keyValueRow(key: "Particle Alpha", value: String(format: "%.2f", renderParameters.backgroundParticleAlpha))
                         keyValueRow(key: "Max Sample Offset", value: String(format: "%.1f", renderParameters.maxSampleOffset))
                         keyValueRow(key: "Estimated Render Cost", value: String(format: "%.1f ms", renderParameters.estimatedRenderMS))
-                        Text("Meaning: higher values improve visual richness but increase GPU cost; adaptive quality automatically switches between HIGH / MEDIUM / LOW to keep frame budget stable.")
+                        Text("Meaning: higher values improve visual richness but increase GPU cost; adaptive quality automatically switches between HIGH / MEDIUM / LOW to keep frame budget stable. Current quality is shown in the top-left performance overlay.")
                             .font(.system(size: 13, weight: .regular, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
@@ -121,4 +136,3 @@ public struct TerrariumGuideView: View {
         .background(Color.black.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
-

@@ -6,13 +6,22 @@ public struct StatsOverlayView: View {
     public let fps: Double
     public let simulationMS: Double
     public let renderMS: Double
+    public let quality: RenderQualityLevel
     public let isCompact: Bool
 
-    public init(snapshot: EcosystemSnapshot, fps: Double, simulationMS: Double, renderMS: Double, isCompact: Bool) {
+    public init(
+        snapshot: EcosystemSnapshot,
+        fps: Double,
+        simulationMS: Double,
+        renderMS: Double,
+        quality: RenderQualityLevel,
+        isCompact: Bool
+    ) {
         self.snapshot = snapshot
         self.fps = fps
         self.simulationMS = simulationMS
         self.renderMS = renderMS
+        self.quality = quality
         self.isCompact = isCompact
     }
 
@@ -22,6 +31,7 @@ public struct StatsOverlayView: View {
                 metricChip(title: "FPS", value: String(format: "%.0f", fps))
                 metricChip(title: "Sim", value: String(format: "%.1f ms", simulationMS))
                 metricChip(title: "Render", value: String(format: "%.1f ms", renderMS))
+                metricChip(title: "Quality", value: quality.rawValue.uppercased())
             }
 
             HStack(spacing: isCompact ? 6 : 8) {

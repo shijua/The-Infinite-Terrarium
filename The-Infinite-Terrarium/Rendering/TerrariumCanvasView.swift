@@ -73,16 +73,6 @@ public struct TerrariumCanvasView: View {
                 isEnabled: true
             )
             .animation(.easeInOut(duration: 0.22), value: renderParameters.quality)
-            .overlay(alignment: .topTrailing) {
-                Text("\(snapshot.totalBoids)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .foregroundStyle(.white.opacity(0.8))
-                    .background(Color.black.opacity(0.22), in: Capsule())
-                    .padding(.top, 14)
-                    .padding(.trailing, 14)
-            }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .ignoresSafeArea()

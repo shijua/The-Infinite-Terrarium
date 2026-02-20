@@ -1,25 +1,19 @@
 import SwiftUI
 
-/// Bottom action rail. Triggers the three required interactions: Feed, Mutate, Analyze.
+/// Bottom action rail. Feed is now triggered by tapping the simulation surface.
 public struct GlassToolbarView: View {
-    public let quality: RenderQualityLevel
     public let isCompact: Bool
-    public let onFeed: () -> Void
     public let onMutate: () -> Void
     public let onAnalyze: () -> Void
     public let onGuide: () -> Void
 
     public init(
-        quality: RenderQualityLevel,
         isCompact: Bool,
-        onFeed: @escaping () -> Void,
         onMutate: @escaping () -> Void,
         onAnalyze: @escaping () -> Void,
         onGuide: @escaping () -> Void
     ) {
-        self.quality = quality
         self.isCompact = isCompact
-        self.onFeed = onFeed
         self.onMutate = onMutate
         self.onAnalyze = onAnalyze
         self.onGuide = onGuide
@@ -29,16 +23,6 @@ public struct GlassToolbarView: View {
         // Wide layout uses one row; compact layout folds into two rows.
         ViewThatFits(in: .horizontal) {
             HStack(spacing: isCompact ? 8 : 12) {
-                actionButton(
-                    id: "feed",
-                    title: "Feed",
-                    subtitle: "Energy pulse",
-                    symbol: "drop.fill",
-                    tint: .green,
-                    compact: false,
-                    action: onFeed
-                )
-
                 actionButton(
                     id: "mutate",
                     title: "Mutate",
@@ -60,21 +44,10 @@ public struct GlassToolbarView: View {
                 )
 
                 guideButton(compact: false)
-                qualityBadge(compact: false)
             }
 
             VStack(spacing: isCompact ? 8 : 10) {
                 HStack(spacing: isCompact ? 8 : 12) {
-                    actionButton(
-                        id: "feed",
-                        title: "Feed",
-                        subtitle: "Energy pulse",
-                        symbol: "drop.fill",
-                        tint: .green,
-                        compact: true,
-                        action: onFeed
-                    )
-
                     actionButton(
                         id: "mutate",
                         title: "Mutate",
@@ -98,7 +71,6 @@ public struct GlassToolbarView: View {
 
                 HStack(spacing: isCompact ? 8 : 12) {
                     guideButton(compact: true)
-                    qualityBadge(compact: true)
                 }
             }
         }
@@ -154,19 +126,5 @@ public struct GlassToolbarView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("toolbar.guide")
-    }
-
-    private func qualityBadge(compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Quality")
-                .font(.system(size: compact ? 9 : 10, weight: .medium, design: .rounded))
-                .opacity(0.85)
-            Text(quality.rawValue.uppercased())
-                .font(.system(size: compact ? 11 : 12, weight: .bold, design: .rounded))
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, compact ? 8 : 10)
-        .padding(.vertical, compact ? 7 : 8)
-        .background(Color.black.opacity(0.36), in: RoundedRectangle(cornerRadius: compact ? 8 : 10, style: .continuous))
     }
 }

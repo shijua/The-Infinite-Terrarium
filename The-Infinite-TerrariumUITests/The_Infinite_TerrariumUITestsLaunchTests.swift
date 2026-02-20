@@ -10,6 +10,6 @@ final class The_Infinite_TerrariumUITestsLaunchTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        XCTAssertTrue(app.buttons["toolbar.feed"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["toolbar.mutate"].waitForExistence(timeout: 5))
     }
 }

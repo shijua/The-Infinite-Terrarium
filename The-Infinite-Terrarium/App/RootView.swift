@@ -59,17 +59,19 @@ final class RootViewModel: ObservableObject {
         snapshot = simulation.snapshot()
     }
 
-    func enqueueFeed() {
+    func enqueueFeed(at worldPoint: SIMD2<Float>? = nil) {
         var rng = DeterministicRNG(seed: deterministicSeed)
         deterministicSeed = rng.nextUInt64()
 
-        let point: SIMD2<Float>
-        if boids.isEmpty {
-            point = SIMD2<Float>(
-                rng.nextFloat(in: worldBounds.min.x...worldBounds.max.x),
-                rng.nextFloat(in: worldBounds.min.y...worldBounds.max.y)
-            )
-        } else {
+        let isTapFeed = worldPoint != nil
+        let point = worldPoint.map(worldBounds.clamp) ?? {
+            if boids.isEmpty {
+                return SIMD2<Float>(
+                    rng.nextFloat(in: worldBounds.min.x...worldBounds.max.x),
+                    rng.nextFloat(in: worldBounds.min.y...worldBounds.max.y)
+                )
+            }
+
             let centroid = boids.reduce(SIMD2<Float>(repeating: 0)) { partial, boid in
                 partial + boid.position
             } / Float(boids.count)
@@ -77,8 +79,8 @@ final class RootViewModel: ObservableObject {
                 rng.nextFloat(in: -95...95),
                 rng.nextFloat(in: -95...95)
             )
-            point = worldBounds.clamp(centroid + jitter)
-        }
+            return worldBounds.clamp(centroid + jitter)
+        }()
 
         let feedRadius: Float = 210
         let feedRadiusSq = feedRadius * feedRadius
@@ -91,7 +93,36 @@ final class RootViewModel: ObservableObject {
         feedPulse = FeedPulse(worldPoint: point, issuedAtReferenceTime: Date().timeIntervalSinceReferenceDate)
         actionHint = affectedCount > 0
             ? "Feed boosted \(affectedCount) nearby organisms with an energy pulse."
-            : "Feed pulse queued near colony center; effect appears when organisms pass through it."
+            : (isTapFeed
+                ? "Feed pulse queued at tapped location; effect appears when organisms pass through it."
+                : "Feed pulse queued near colony center; effect appears when organisms pass through it.")
+    }
+
+    func enqueueFeed() {
+        enqueueFeed(at: nil)
+    }
+
+    func worldPointFromCanvasTap(location: CGPoint, canvasSize: CGSize) -> SIMD2<Float>? {
+        guard canvasSize.width > 1, canvasSize.height > 1 else {
+            return nil
+        }
+
+        let nx = Float(max(0.0, min(1.0, location.x / canvasSize.width)))
+        let ny = Float(max(0.0, min(1.0, location.y / canvasSize.height)))
+        let worldSize = worldBounds.size
+        let world = SIMD2<Float>(
+            worldBounds.min.x + nx * worldSize.x,
+            worldBounds.min.y + ny * worldSize.y
+        )
+        return worldBounds.clamp(world)
+    }
+
+    func enqueueFeedFromCanvasTap(location: CGPoint, canvasSize: CGSize) {
+        guard let worldPoint = worldPointFromCanvasTap(location: location, canvasSize: canvasSize) else {
+            enqueueFeed()
+            return
+        }
+        enqueueFeed(at: worldPoint)
     }
 
     func enqueueMutation() {
@@ -117,20 +148,88 @@ final class RootViewModel: ObservableObject {
         defer { isAIBusy = false }
 
         do {
-            let dna = try await withTimeout(seconds: 30) {
-                try await self.aiProvider.generateDNA(context: self.snapshot)
-            }
-            pendingCommands.append(.injectSpecies(dna: dna, count: 48))
-            analyzeResponse = "Injected \(dna.speciesName). Observe how social distance and metabolism alter the biome."
-            actionHint = "Injected \(dna.speciesName)."
+            let plan = makeInjectPlan()
+            let dnas = try await generateAICluster(stage: stage, speciesCount: plan.speciesCount, timeoutSeconds: plan.timeoutSeconds)
+            let counts = distributePopulation(total: plan.population, buckets: dnas.count)
 
+            for (dna, count) in zip(dnas, counts) {
+                pendingCommands.append(.injectSpecies(dna: dna, count: count))
+            }
+
+            analyzeResponse = "AI inject complete: +\(plan.population) organisms across \(dnas.count) species."
+            actionHint = "AI injection complete: +\(plan.population) organisms / \(dnas.count) species."
         } catch is TimeoutError {
             analyzeResponse = AIProviderError.timeout.localizedDescription
-            actionHint = "Injection timed out."
+            actionHint = "AI injection timed out. No species injected."
         } catch {
             analyzeResponse = error.localizedDescription
-            actionHint = "Injection failed: \(error.localizedDescription)"
+            actionHint = "AI injection failed: \(error.localizedDescription)"
         }
+    }
+
+    private func makeInjectPlan() -> (population: Int, speciesCount: Int, timeoutSeconds: TimeInterval) {
+        var rng = DeterministicRNG(seed: deterministicSeed ^ UInt64(max(1, snapshot.totalBoids)))
+        let population = rng.nextInt(in: PromptBuilder.injectPopulationRange)
+        let speciesCount = rng.nextInt(in: PromptBuilder.injectSpeciesCountRange)
+        let timeoutSeconds = TimeInterval(rng.nextInt(in: PromptBuilder.injectDNATimeoutSecondsRange))
+        deterministicSeed = rng.nextUInt64()
+        return (population, speciesCount, timeoutSeconds)
+    }
+
+    private func generateAICluster(
+        stage: AIStage,
+        speciesCount: Int,
+        timeoutSeconds: TimeInterval
+    ) async throws -> [SpeciesDNA] {
+        let target = max(1, speciesCount)
+        return try await withTimeout(seconds: timeoutSeconds) {
+            try await self.aiProvider.generateDNACluster(
+                context: self.snapshot,
+                stage: stage,
+                count: target
+            )
+        }
+    }
+
+    private func distributePopulation(total: Int, buckets: Int) -> [Int] {
+        let safeBuckets = max(1, buckets)
+        let safeTotal = max(safeBuckets, total)
+
+        var rng = DeterministicRNG(seed: deterministicSeed ^ UInt64(safeTotal) ^ UInt64(safeBuckets))
+        var weights: [Float] = []
+        weights.reserveCapacity(safeBuckets)
+        var weightSum: Float = 0
+
+        for _ in 0..<safeBuckets {
+            let weight = rng.nextFloat(in: 0.6...1.4)
+            weights.append(weight)
+            weightSum += weight
+        }
+
+        var counts = Array(repeating: 1, count: safeBuckets)
+        var remaining = safeTotal - safeBuckets
+
+        for index in 0..<safeBuckets {
+            if remaining <= 0 {
+                break
+            }
+
+            let slotsLeft = safeBuckets - index
+            if slotsLeft == 1 {
+                counts[index] += remaining
+                remaining = 0
+                break
+            }
+
+            let share = Int((Float(remaining) * (weights[index] / max(weightSum, 0.0001))).rounded())
+            let maxAlloc = remaining - (slotsLeft - 1)
+            let allocated = max(0, min(maxAlloc, share))
+            counts[index] += allocated
+            remaining -= allocated
+        }
+
+        deterministicSeed = rng.nextUInt64()
+        return counts
     }
 
     func analyzeCurrentEcosystem() async {
@@ -169,6 +268,13 @@ final class RootViewModel: ObservableObject {
         defer { isTicking = false }
 
         let dt = frameStepper.step(at: date)
+
+        if isAIBusy || isGuidePresented {
+            if let feedPulse, date.timeIntervalSinceReferenceDate - feedPulse.issuedAtReferenceTime > 1.2 {
+                self.feedPulse = nil
+            }
+            return
+        }
 
         // Commands are consumed exactly once at frame boundary.
         let commands = pendingCommands
@@ -214,6 +320,7 @@ final class RootViewModel: ObservableObject {
 struct RootView: View {
     @StateObject private var viewModel = RootViewModel()
     @State private var didAppear = false
+    @AppStorage("hud.showPerformanceOverlay") private var isStatsOverlayVisible = true
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var isCompact: Bool {
@@ -224,29 +331,44 @@ struct RootView: View {
         ZStack(alignment: .bottom) {
             // Timeline drives both render animation and simulation stepping.
             TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { timeline in
-                TerrariumCanvasView(
-                    boids: viewModel.boids,
-                    snapshot: viewModel.snapshot,
-                    worldBounds: viewModel.worldBounds,
-                    renderParameters: viewModel.renderParameters,
-                    timelineDate: timeline.date,
-                    feedPulse: viewModel.feedPulse
-                )
-                .opacity(didAppear ? 1 : 0)
-                .scaleEffect(didAppear ? 1 : 1.04)
-                .task(id: timeline.date) {
-                    await viewModel.tick(at: timeline.date)
+                GeometryReader { geometry in
+                    TerrariumCanvasView(
+                        boids: viewModel.boids,
+                        snapshot: viewModel.snapshot,
+                        worldBounds: viewModel.worldBounds,
+                        renderParameters: viewModel.renderParameters,
+                        timelineDate: timeline.date,
+                        feedPulse: viewModel.feedPulse
+                    )
+                    .contentShape(Rectangle())
+                    .highPriorityGesture(
+                        DragGesture(minimumDistance: 0)
+                            .onEnded { value in
+                                viewModel.enqueueFeedFromCanvasTap(
+                                    location: value.location,
+                                    canvasSize: geometry.size
+                                )
+                            }
+                    )
+                    .opacity(didAppear ? 1 : 0)
+                    .scaleEffect(didAppear ? 1 : 1.04)
+                    .task(id: timeline.date) {
+                        await viewModel.tick(at: timeline.date)
+                    }
                 }
             }
 
             VStack(spacing: isCompact ? 8 : 12) {
-                StatsOverlayView(
-                    snapshot: viewModel.snapshot,
-                    fps: viewModel.fps,
-                    simulationMS: viewModel.simulationMS,
-                    renderMS: viewModel.renderMS,
-                    isCompact: isCompact
-                )
+                if isStatsOverlayVisible {
+                    StatsOverlayView(
+                        snapshot: viewModel.snapshot,
+                        fps: viewModel.fps,
+                        simulationMS: viewModel.simulationMS,
+                        renderMS: viewModel.renderMS,
+                        quality: viewModel.renderParameters.quality,
+                        isCompact: isCompact
+                    )
+                }
 
                 Spacer()
 
@@ -254,7 +376,7 @@ struct RootView: View {
                     AnalyzePanelView(
                         question: $viewModel.analyzeQuestion,
                         response: viewModel.analyzeResponse,
-                        isLoading: viewModel.isAnalyzing,
+                        isLoading: viewModel.isAIBusy,
                         isAIBusy: viewModel.isAIBusy,
                         isCompact: isCompact,
                         onAsk: {
@@ -285,11 +407,7 @@ struct RootView: View {
                 }
 
                 GlassToolbarView(
-                    quality: viewModel.renderParameters.quality,
                     isCompact: isCompact,
-                    onFeed: {
-                        viewModel.enqueueFeed()
-                    },
                     onMutate: {
                         viewModel.enqueueMutation()
                     },
@@ -307,7 +425,7 @@ struct RootView: View {
             .animation(.spring(duration: 0.32, bounce: 0.16), value: viewModel.isAnalyzePresented)
         }
         .onAppear {
-            requestLandscapeOrientationIfNeeded()
+            configureWindowSceneIfNeeded()
             withAnimation(.easeOut(duration: 1.2)) {
                 didAppear = true
             }
@@ -320,16 +438,23 @@ struct RootView: View {
         }
     }
 
-    private func requestLandscapeOrientationIfNeeded() {
+    private func configureWindowSceneIfNeeded() {
         guard let windowScene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
             .first(where: { $0.activationState == .foregroundActive }) else {
             return
         }
 
+        #if targetEnvironment(macCatalyst)
+        if let titlebar = windowScene.titlebar {
+            titlebar.titleVisibility = .hidden
+            titlebar.toolbar = nil
+        }
+        #else
         windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape)) { error in
             AppLogger.rendering.error("Failed to request landscape orientation: \(error.localizedDescription)")
         }
+        #endif
     }
 }
 

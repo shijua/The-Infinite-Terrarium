@@ -10,6 +10,9 @@ final class The_Infinite_TerrariumUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
+        // Feed is injected by tapping the simulation surface.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+
         let analyzeButton = app.buttons["toolbar.analyze"]
         XCTAssertTrue(analyzeButton.waitForExistence(timeout: 5))
         analyzeButton.tap()
@@ -22,10 +25,6 @@ final class The_Infinite_TerrariumUITests: XCTestCase {
         let runButton = app.buttons["analyze.run"]
         XCTAssertTrue(runButton.exists)
         runButton.tap()
-
-        let feedButton = app.buttons["toolbar.feed"]
-        XCTAssertTrue(feedButton.exists)
-        feedButton.tap()
 
         let mutateButton = app.buttons["toolbar.mutate"]
         XCTAssertTrue(mutateButton.exists)
@@ -44,15 +43,15 @@ final class The_Infinite_TerrariumUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        XCTAssertTrue(app.buttons["toolbar.feed"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["toolbar.mutate"].waitForExistence(timeout: 5))
 
         XCUIDevice.shared.orientation = .landscapeLeft
-        XCTAssertTrue(app.buttons["toolbar.feed"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["toolbar.mutate"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["toolbar.mutate"].exists)
         XCTAssertTrue(app.buttons["toolbar.analyze"].exists)
 
         XCUIDevice.shared.orientation = .landscapeRight
-        XCTAssertTrue(app.buttons["toolbar.feed"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["toolbar.mutate"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["toolbar.mutate"].exists)
         XCTAssertTrue(app.buttons["toolbar.analyze"].exists)
     }
