@@ -29,6 +29,37 @@ public struct TerrariumGuideView: View {
                         .toggleStyle(.switch)
                     }
 
+                    sectionCard(title: "Performance Overlay Metrics") {
+                        guideRow(
+                            title: "FPS",
+                            subtitle: "Current frame rate. Computed from a rolling average of recent frame durations."
+                        )
+                        guideRow(
+                            title: "Sim",
+                            subtitle: "Per-frame simulation time in milliseconds (boid rules, neighbor lookup, and state updates)."
+                        )
+                        guideRow(
+                            title: "Render",
+                            subtitle: "Estimated render cost in milliseconds from the current quality preset (not real-time GPU profiling)."
+                        )
+                        guideRow(
+                            title: "Quality",
+                            subtitle: "Current render tier (HIGH / MEDIUM / LOW). Adaptive quality can switch tiers based on frame budget."
+                        )
+                        guideRow(
+                            title: "Population",
+                            subtitle: "Total number of living boids in the current frame."
+                        )
+                        guideRow(
+                            title: "Avg Energy",
+                            subtitle: "Average energy across all living boids."
+                        )
+                        guideRow(
+                            title: "At Risk",
+                            subtitle: "Number of at-risk species (species count, not individual count). A species is at risk if count < 24 or averageEnergy < 0.23."
+                        )
+                    }
+
                     sectionCard(title: "Interaction Controls") {
                         guideRow(title: "Feed", subtitle: "Tap directly on the simulation surface to add a local energy pulse at that location. There is no Feed toolbar button.")
                         guideRow(title: "Mutate", subtitle: "Retunes dominant species DNA: social distance, alignment, cohesion, metabolism, and max speed.")

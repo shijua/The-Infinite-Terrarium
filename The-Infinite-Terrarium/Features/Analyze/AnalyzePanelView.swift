@@ -36,7 +36,12 @@ public struct AnalyzePanelView: View {
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.4), radius: 1, x: 0, y: 1)
 
-            TextField("Ask about ecosystem dynamics...", text: $question)
+            TextField(
+                "",
+                text: $question,
+                prompt: Text("Ask about ecosystem dynamics...")
+                    .foregroundStyle(.white.opacity(0.78))
+            )
                 .textFieldStyle(.plain)
                 .padding(12)
                 .background(Color.black.opacity(0.40), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
@@ -79,10 +84,12 @@ public struct AnalyzePanelView: View {
                             .tint(.white)
                         Text("AI is processing...")
                     }
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .font(.system(size: isCompact ? 12 : 13, weight: .medium, design: .rounded))
                     .foregroundStyle(.white.opacity(0.9))
                 } else {
                     responseContent
+                        .frame(maxHeight: isCompact ? 220 : 300, alignment: .top)
                 }
             }
             .frame(minHeight: 72)
@@ -98,17 +105,52 @@ public struct AnalyzePanelView: View {
     }
 
     private var responseContent: some View {
-        ScrollView(.vertical, showsIndicators: false) {
+        ScrollView(.vertical, showsIndicators: true) {
             Markdown(normalizedResponse)
-                .markdownTheme(.gitHub)
-                .foregroundStyle(.white.opacity(0.95))
-                .tint(.cyan)
+                .markdownTheme(whiteMarkdownTheme)
+                .tint(.white)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
+    }
+
+    private var whiteMarkdownTheme: Theme {
+        Theme.basic
+            .text {
+                ForegroundColor(.white.opacity(0.95))
+                BackgroundColor(nil)
+            }
+            .strong {
+                ForegroundColor(.white)
+                FontWeight(.semibold)
+            }
+            .emphasis {
+                ForegroundColor(.white.opacity(0.95))
+                FontStyle(.italic)
+            }
+            .code {
+                ForegroundColor(.white.opacity(0.95))
+                BackgroundColor(nil)
+                FontFamilyVariant(.monospaced)
+            }
+            .link {
+                ForegroundColor(.white)
+                UnderlineStyle(.single)
+            }
+            .codeBlock { configuration in
+                configuration.label
+                    .markdownTextStyle {
+                        ForegroundColor(.white.opacity(0.95))
+                        BackgroundColor(nil)
+                        FontFamilyVariant(.monospaced)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .relativeLineSpacing(.em(0.15))
+                    .relativePadding(.leading, length: .rem(1))
+                    .markdownMargin(top: .zero, bottom: .em(1))
+            }
     }
 
     private var normalizedResponse: String {
