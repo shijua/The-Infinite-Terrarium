@@ -10,6 +10,7 @@ xcuserdata/
 # Xcode build outputs
 DerivedData/
 build/
+build-macos/
 build-metrics/
 
 # Swift Package Manager
@@ -25,3 +26,4 @@ Package.resolved
 
 # Local docs/artifacts
 info.pdf
+The-Infinite-Terrarium-macOS-*.zip

@@ -4,7 +4,7 @@ import Foundation
 import FoundationModels
 
 /// Structured output contract for model-guided DNA generation.
-@available(iOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 @Generable(description: "A digital organism DNA blueprint")
 private struct GeneratedSpeciesDNA {
     @Guide(description: "Scientific style species name")
@@ -30,33 +30,76 @@ private struct GeneratedSpeciesDNA {
 }
 
 /// On-device provider backed by iOS Foundation Models.
-@available(iOS 26.0, *)
+@available(iOS 26.0, macOS 26.0, *)
 public actor FoundationModelsProvider: AIProvider {
-    private let session: LanguageModelSession
+    private var session: LanguageModelSession
+
+    private static let instructions = """
+        You are an AI exobiologist observing and designing digital organisms.
+        Keep outputs concise and analytical.
+        Prioritize physically plausible flocking traits and ecosystem balance.
+        """
+
+    private static func makeSession() -> LanguageModelSession {
+        LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
+    }
+
+    /// Resets the session when the context window is exceeded.
+    private func resetSession() {
+        session = Self.makeSession()
+    }
+
+    /// Returns a ready `FoundationModelsProvider`, or an `UnavailableAIProvider`
+    /// carrying the exact system-level reason (e.g. Apple Intelligence not enabled,
+    /// model not downloaded, device ineligible).
+    public static func makeOrUnavailable() -> any AIProvider {
+        let model = SystemLanguageModel.default
+        switch model.availability {
+        case .available:
+            return FoundationModelsProvider()!
+        case .unavailable(let reason):
+            let message: String
+            switch reason {
+            case .appleIntelligenceNotEnabled:
+                message = "Apple Intelligence is not enabled. Go to Settings → Apple Intelligence & Siri to turn it on."
+            case .deviceNotEligible:
+                message = "This device is not eligible for on-device Foundation Models."
+            case .modelNotReady:
+                message = "The on-device model is not ready yet (still downloading or initialising). Please try again later."
+            @unknown default:
+                message = "On-device Foundation Model unavailable: \(reason)."
+            }
+            return UnavailableAIProvider(reason: message)
+        }
+    }
 
     public init?() {
-        let model = SystemLanguageModel.default
-        guard model.isAvailable else {
-            return nil
-        }
-
-        session = LanguageModelSession(
-            model: model,
-            instructions: """
-            You are an AI exobiologist observing and designing digital organisms.
-            Keep outputs concise and analytical.
-            Prioritize physically plausible flocking traits and ecosystem balance.
-            """
-        )
+        guard SystemLanguageModel.default.isAvailable else { return nil }
+        session = Self.makeSession()
     }
 
     public func generateDNA(context: EcosystemSnapshot) async throws -> SpeciesDNA {
-        // Typed generation avoids manual JSON parsing and keeps value ranges constrained.
+        do {
+            return try await _generateDNA(context: context)
+        } catch let error as LanguageModelSession.GenerationError {
+            if case .exceededContextWindowSize = error {
+                resetSession()
+                do {
+                    return try await _generateDNA(context: context)
+                } catch {
+                    // Second attempt failed — give up and propagate clear error
+                    throw AIProviderError.unavailableWithReason("Context window exceeded even after reset. Try restarting the app to clear conversation history.")
+                }
+            }
+            throw error
+        }
+    }
+
+    private func _generateDNA(context: EcosystemSnapshot) async throws -> SpeciesDNA {
         let response = try await session.respond(
             to: PromptBuilder.dnaPrompt(context: context),
             generating: GeneratedSpeciesDNA.self
         )
-
         return SpeciesDNA(
             speciesName: response.content.speciesName,
             hue: response.content.hue,
@@ -69,10 +112,26 @@ public actor FoundationModelsProvider: AIProvider {
     }
 
     public func explain(question: String, context: EcosystemSnapshot) async throws -> String {
+        do {
+            return try await _explain(question: question, context: context)
+        } catch let error as LanguageModelSession.GenerationError {
+            if case .exceededContextWindowSize = error {
+                resetSession()
+                do {
+                    return try await _explain(question: question, context: context)
+                } catch {
+                    // Second attempt failed — give up and propagate clear error
+                    throw AIProviderError.unavailableWithReason("Context window exceeded even after reset. Try restarting the app to clear conversation history.")
+                }
+            }
+            throw error
+        }
+    }
+
+    private func _explain(question: String, context: EcosystemSnapshot) async throws -> String {
         let response = try await session.respond(
             to: PromptBuilder.explainPrompt(question: question, context: context)
         )
-
         return response.content
     }
 }

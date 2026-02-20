@@ -5,6 +5,7 @@ public struct AnalyzePanelView: View {
     @Binding public var question: String
     public let response: String
     public let isLoading: Bool
+    public let isAIBusy: Bool
     public let isCompact: Bool
     public let onAsk: () -> Void
     public let onInjectSpecies: () -> Void
@@ -13,6 +14,7 @@ public struct AnalyzePanelView: View {
         question: Binding<String>,
         response: String,
         isLoading: Bool,
+        isAIBusy: Bool = false,
         isCompact: Bool,
         onAsk: @escaping () -> Void,
         onInjectSpecies: @escaping () -> Void
@@ -20,6 +22,7 @@ public struct AnalyzePanelView: View {
         _question = question
         self.response = response
         self.isLoading = isLoading
+        self.isAIBusy = isAIBusy
         self.isCompact = isCompact
         self.onAsk = onAsk
         self.onInjectSpecies = onInjectSpecies
@@ -48,21 +51,23 @@ public struct AnalyzePanelView: View {
                         .shadow(color: .black.opacity(0.28), radius: 1, x: 0, y: 1)
                         .padding(.vertical, isCompact ? 10 : 11)
                         .frame(maxWidth: .infinity)
-                        .background(Color.cyan.opacity(0.72), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
+                        .background(Color.cyan.opacity(isAIBusy ? 0.35 : 0.72), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .disabled(isAIBusy)
                 .accessibilityIdentifier("analyze.run")
 
                 Button(action: onInjectSpecies) {
                     Label("Inject Species", systemImage: "leaf.fill")
                         .font(.system(size: isCompact ? 14 : 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.95))
+                        .foregroundStyle(.white.opacity(isAIBusy ? 0.40 : 0.95))
                         .shadow(color: .black.opacity(0.26), radius: 1, x: 0, y: 1)
                         .padding(.vertical, isCompact ? 10 : 11)
                         .frame(maxWidth: .infinity)
                         .background(Color.black.opacity(0.32), in: RoundedRectangle(cornerRadius: isCompact ? 8 : 10, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .disabled(isAIBusy)
                 .accessibilityIdentifier("analyze.inject")
             }
 

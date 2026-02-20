@@ -4,6 +4,25 @@ import simd
 import UIKit
 import os
 
+/// Timeout error for AI requests.
+struct TimeoutError: Error {}
+
+/// Execute an async operation with a timeout.
+func withTimeout<T: Sendable>(seconds: TimeInterval, operation: @escaping @Sendable () async throws -> T) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+        group.addTask {
+            try await operation()
+        }
+        group.addTask {
+            try await Task.sleep(for: .seconds(seconds))
+            throw TimeoutError()
+        }
+        let result = try await group.next()!
+        group.cancelAll()
+        return result
+    }
+}
+
 /// Main UI coordinator that bridges user actions, simulation ticks, and AI output.
 @MainActor
 final class RootViewModel: ObservableObject {
@@ -17,6 +36,8 @@ final class RootViewModel: ObservableObject {
     @Published var isAnalyzePresented = false
     @Published var isGuidePresented = false
     @Published var isAnalyzing = false
+    /// Shared lock: true while any AI request (analyze or inject) is in flight.
+    @Published private(set) var isAIBusy = false
     @Published private(set) var actionHint: String = "Feed adds local energy. Mutate retunes dominant species DNA."
     @Published private(set) var feedPulse: FeedPulse?
 
@@ -85,38 +106,57 @@ final class RootViewModel: ObservableObject {
 
     func toggleAnalyze() {
         isAnalyzePresented.toggle()
-
-        if isAnalyzePresented {
-            Task {
-                await analyzeCurrentEcosystem()
-            }
-        }
     }
 
     func injectSpeciesFromAI(stage: AIStage) async {
+        guard !isAIBusy else {
+            actionHint = "AI is already working — please wait."
+            return
+        }
+        isAIBusy = true
+        defer { isAIBusy = false }
+
         do {
-            let dna = try await aiProvider.generateDNA(context: snapshot)
+            let dna = try await withTimeout(seconds: 30) {
+                try await self.aiProvider.generateDNA(context: self.snapshot)
+            }
             pendingCommands.append(.injectSpecies(dna: dna, count: 48))
             analyzeResponse = "Injected \(dna.speciesName). Observe how social distance and metabolism alter the biome."
             actionHint = "Injected \(dna.speciesName)."
 
+        } catch is TimeoutError {
+            analyzeResponse = AIProviderError.timeout.localizedDescription
+            actionHint = "Injection timed out."
         } catch {
-            analyzeResponse = "AI injection unavailable. On-device Foundation Model is not available on this device."
-            actionHint = "Injection failed. On-device AI unavailable."
+            analyzeResponse = error.localizedDescription
+            actionHint = "Injection failed: \(error.localizedDescription)"
         }
     }
 
     func analyzeCurrentEcosystem() async {
+        guard !isAIBusy else {
+            actionHint = "AI is already working — please wait."
+            return
+        }
+        isAIBusy = true
         isAnalyzing = true
-        defer { isAnalyzing = false }
+        defer {
+            isAnalyzing = false
+            isAIBusy = false
+        }
 
         do {
-            let text = try await aiProvider.explain(question: analyzeQuestion, context: snapshot)
+            let text = try await withTimeout(seconds: 30) {
+                try await self.aiProvider.explain(question: self.analyzeQuestion, context: self.snapshot)
+            }
             analyzeResponse = text
             actionHint = "Analysis updated."
+        } catch is TimeoutError {
+            analyzeResponse = AIProviderError.timeout.localizedDescription
+            actionHint = "Analysis timed out."
         } catch {
-            analyzeResponse = "Analysis unavailable. On-device Foundation Model is currently unavailable."
-            actionHint = "Analysis failed. On-device AI unavailable."
+            analyzeResponse = error.localizedDescription
+            actionHint = "Analysis failed: \(error.localizedDescription)"
         }
     }
 
@@ -215,6 +255,7 @@ struct RootView: View {
                         question: $viewModel.analyzeQuestion,
                         response: viewModel.analyzeResponse,
                         isLoading: viewModel.isAnalyzing,
+                        isAIBusy: viewModel.isAIBusy,
                         isCompact: isCompact,
                         onAsk: {
                             Task {

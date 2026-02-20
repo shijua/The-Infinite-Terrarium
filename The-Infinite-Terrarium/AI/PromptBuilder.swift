@@ -10,35 +10,22 @@ public enum AIStage: String, Sendable {
 public enum PromptBuilder {
     public static func dnaPrompt(context: EcosystemSnapshot, stage: AIStage = .mutation) -> String {
         """
-        You are an AI exobiologist engineering a new digital organism.
-        Stage: \(stage.rawValue)
-        Constraints:
-        - Keep values physically plausible for flocking.
-        - Prefer balancing ecosystem diversity and survival pressure.
-        - Return concise traits.
-
-        Ecosystem snapshot:
-        - totalBoids: \(context.totalBoids)
-        - avgEnergy: \(String(format: "%.3f", context.avgEnergy))
-        - extinctionRiskSpeciesIDs: \(context.extinctionRiskSpeciesIDs)
-        - topSpecies: \(context.speciesStats.prefix(4).map { "\($0.name):\($0.count)" }.joined(separator: ", "))
+        Create a new digital organism with plausible flocking traits.
+        Current ecosystem: \(context.totalBoids) organisms, avg energy \(String(format: "%.2f", context.avgEnergy))
+        Top species: \(context.speciesStats.prefix(3).map { "\($0.name)(\($0.count))" }.joined(separator: ", "))
         """
     }
 
     public static func explainPrompt(question: String, context: EcosystemSnapshot, stage: AIStage = .analysis) -> String {
-        """
-        You are an AI exobiologist narrating a synthetic ecosystem.
-        Stage: \(stage.rawValue)
-        Speak in short analytical sentences.
-        Use terms such as homeostasis, drift, selective pressure when relevant.
-
-        User question: \(question)
-
-        Ecosystem snapshot:
-        - totalBoids: \(context.totalBoids)
-        - avgEnergy: \(String(format: "%.3f", context.avgEnergy))
-        - extinctionRiskSpeciesIDs: \(context.extinctionRiskSpeciesIDs)
-        - species: \(context.speciesStats.map { "id=\($0.speciesID),name=\($0.name),count=\($0.count),avgEnergy=\(String(format: "%.3f", $0.averageEnergy)),hue=\($0.hue),socialDistance=\(String(format: "%.2f", $0.socialDistance)),alignment=\(String(format: "%.2f", $0.alignmentWeight)),cohesion=\(String(format: "%.2f", $0.cohesionWeight)),metabolism=\(String(format: "%.2f", $0.metabolismRate)),maxSpeed=\(String(format: "%.0f", $0.maxSpeed))" }.joined(separator: " | "))
+        let topSpecies = context.speciesStats.prefix(5).map { 
+            "\($0.name): \($0.count) organisms, energy \(String(format: "%.2f", $0.averageEnergy))" 
+        }.joined(separator: " | ")
+        
+        return """
+        Explain concisely in 2-3 analytical sentences.
+        Question: \(question)
+        Ecosystem: \(context.totalBoids) organisms, avg energy \(String(format: "%.2f", context.avgEnergy))
+        Species: \(topSpecies)
         """
     }
 }

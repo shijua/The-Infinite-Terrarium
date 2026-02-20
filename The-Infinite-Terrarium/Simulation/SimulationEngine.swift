@@ -262,10 +262,10 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
             }
         }
 
-        if boids.count > 1_200 {
+        if boids.count > 2400 {
             // Hard cap for performance budget protection.
             boids.shuffle()
-            boids.removeLast(boids.count - 1_200)
+            boids.removeLast(boids.count - 2400)
         }
     }
 
