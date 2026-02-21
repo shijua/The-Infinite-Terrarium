@@ -10,6 +10,7 @@ xcuserdata/
 # Xcode build outputs
 DerivedData/
 build/
+build-spm/
 build-macos/
 build-metrics/
 
@@ -27,3 +28,13 @@ Package.resolved
 # Local docs/artifacts
 info.pdf
 The-Infinite-Terrarium-macOS-*.zip
+The-Infinite-Terrarium-SSC.zip
+*.swiftpm
+!The-Infinite-Terrarium.swiftpm/
+!The-Infinite-Terrarium.swiftpm/**
+The-Infinite-Terrarium.swiftpm/.swiftpm/
+The-Infinite-Terrarium.swiftpm/.build/
+
+# Local build caches
+.cache/
+.home/
