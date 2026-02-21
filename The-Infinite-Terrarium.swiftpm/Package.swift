@@ -8,7 +8,7 @@ import PackageDescription
 import AppleProductTypes
 
 let package = Package(
-    name: "The Infinite Terrarium",
+    name: "Infinite Terrarium",
     defaultLocalization: "en",
     platforms: [
         .iOS("18.0")

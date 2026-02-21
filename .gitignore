@@ -29,6 +29,7 @@ Package.resolved
 info.pdf
 The-Infinite-Terrarium-macOS-*.zip
 The-Infinite-Terrarium-SSC.zip
+Docs/
 *.swiftpm
 !The-Infinite-Terrarium.swiftpm/
 !The-Infinite-Terrarium.swiftpm/**
