@@ -6,6 +6,8 @@ public struct GlassToolbarView: View {
     public let onMutate: () -> Void
     public let onAnalyze: () -> Void
     public let onGuide: () -> Void
+    private let compactButtonMinHeight: CGFloat = 40
+    private let regularButtonMinHeight: CGFloat = 56
 
     public init(
         isCompact: Bool,
@@ -108,6 +110,7 @@ public struct GlassToolbarView: View {
             .shadow(color: .black.opacity(0.35), radius: 1, x: 0, y: 1)
             .padding(.horizontal, compact ? 10 : 12)
             .padding(.vertical, compact ? 9 : 10)
+            .frame(minHeight: compact ? compactButtonMinHeight : regularButtonMinHeight, alignment: .leading)
             .background(tint.opacity(compact ? 0.30 : 0.26), in: RoundedRectangle(cornerRadius: compact ? 8 : 10, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -116,12 +119,20 @@ public struct GlassToolbarView: View {
 
     private func guideButton(compact: Bool) -> some View {
         Button(action: onGuide) {
-            Label("Guide", systemImage: "info.circle.fill")
-                .font(.system(size: compact ? 12 : 13, weight: .semibold, design: .rounded))
+            VStack(alignment: .leading, spacing: 2) {
+                Label("Guide", systemImage: "info.circle.fill")
+                    .font(.system(size: compact ? 13 : 14, weight: .semibold, design: .rounded))
+                if !compact {
+                    Text("Quick help")
+                        .font(.system(size: 11, weight: .regular, design: .rounded))
+                        .opacity(0.9)
+                }
+            }
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.35), radius: 1, x: 0, y: 1)
                 .padding(.horizontal, compact ? 10 : 12)
-                .padding(.vertical, compact ? 8 : 9)
+                .padding(.vertical, compact ? 9 : 10)
+                .frame(minHeight: compact ? compactButtonMinHeight : regularButtonMinHeight, alignment: .leading)
                 .background(Color.black.opacity(0.30), in: RoundedRectangle(cornerRadius: compact ? 8 : 10, style: .continuous))
         }
         .buttonStyle(.plain)

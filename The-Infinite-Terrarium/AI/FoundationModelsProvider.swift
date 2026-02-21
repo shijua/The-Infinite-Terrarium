@@ -7,7 +7,7 @@ import FoundationModels
 @available(iOS 26.0, macOS 26.0, *)
 @Generable(description: "A digital organism DNA blueprint")
 private struct GeneratedSpeciesDNA {
-    @Guide(description: "Scientific style species name")
+    @Guide(description: "Species color name (must be one of the allowed color names from the prompt)")
     let speciesName: String
 
     @Guide(description: "Color hue 0 to 360", .range(0...360))
@@ -127,19 +127,83 @@ public actor FoundationModelsProvider: AIProvider {
             }
         }
 
-        return species
+        return Self.finalizeCluster(species)
     }
 
     private static func mapGeneratedDNA(_ generated: GeneratedSpeciesDNA) -> SpeciesDNA {
-        SpeciesDNA(
-            speciesName: generated.speciesName,
-            hue: generated.hue,
+        let canonicalName = SpeciesDNA.canonicalColorName(from: generated.speciesName, fallbackHue: generated.hue)
+        let canonicalHue = SpeciesDNA.canonicalHue(forColorName: canonicalName) ?? SpeciesDNA.normalizedHue(generated.hue)
+
+        return SpeciesDNA(
+            speciesName: canonicalName,
+            hue: canonicalHue,
             socialDistance: generated.socialDistance,
             alignmentWeight: generated.alignmentWeight,
             cohesionWeight: generated.cohesionWeight,
             metabolismRate: generated.metabolismRate,
             maxSpeed: generated.maxSpeed
         )
+    }
+
+    private static func finalizeCluster(_ species: [SpeciesDNA]) -> [SpeciesDNA] {
+        applySubtypeVariation(ensureSubtypePresence(species))
+    }
+
+    private static func ensureSubtypePresence(_ species: [SpeciesDNA]) -> [SpeciesDNA] {
+        guard species.count >= 2 else { return species }
+
+        let uniqueColorCount = Set(species.map(\.speciesName)).count
+        guard uniqueColorCount == species.count else { return species }
+
+        var result = species
+        let anchor = result[0]
+        let lastIndex = result.index(before: result.endIndex)
+        let current = result[lastIndex]
+        result[lastIndex] = SpeciesDNA(
+            speciesName: anchor.speciesName,
+            hue: anchor.hue,
+            socialDistance: current.socialDistance,
+            alignmentWeight: current.alignmentWeight,
+            cohesionWeight: current.cohesionWeight,
+            metabolismRate: current.metabolismRate,
+            maxSpeed: current.maxSpeed
+        )
+        return result
+    }
+
+    private static func applySubtypeVariation(_ species: [SpeciesDNA]) -> [SpeciesDNA] {
+        guard species.count >= 2 else { return species }
+
+        var result = species
+        let groupedIndices = Dictionary(grouping: result.indices) { index in
+            result[index].speciesName
+        }
+
+        for indices in groupedIndices.values where indices.count > 1 {
+            let sorted = indices.sorted()
+            let center = Float(sorted.count - 1) / 2
+            for (rank, index) in sorted.enumerated() {
+                let normalizedOffset: Float
+                if center == 0 {
+                    normalizedOffset = 0
+                } else {
+                    normalizedOffset = (Float(rank) - center) / center
+                }
+
+                let base = result[index]
+                result[index] = SpeciesDNA(
+                    speciesName: base.speciesName,
+                    hue: base.hue,
+                    socialDistance: base.socialDistance + normalizedOffset * 0.05,
+                    alignmentWeight: base.alignmentWeight + normalizedOffset * 0.12,
+                    cohesionWeight: base.cohesionWeight - normalizedOffset * 0.10,
+                    metabolismRate: base.metabolismRate + normalizedOffset * 0.10,
+                    maxSpeed: base.maxSpeed + normalizedOffset * 18
+                )
+            }
+        }
+
+        return result
     }
 
     public func explain(question: String, context: EcosystemSnapshot) async throws -> String {

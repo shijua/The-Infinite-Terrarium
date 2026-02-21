@@ -161,7 +161,7 @@ final class SimulationCoreTests: XCTestCase {
                 commands.append(.feed(point: SIMD2<Float>(512, 384), amount: 0.1))
             }
             if step % 500 == 0 {
-                commands.append(.mutate(targetSpeciesID: nil))
+                commands.append(.mutate(targetHue: nil))
             }
 
             frame = await engine.step(deltaTime: 1.0 / 60.0, commands: commands)

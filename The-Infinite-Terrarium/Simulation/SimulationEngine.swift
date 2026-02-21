@@ -232,33 +232,19 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
             case let .feed(point, amount):
                 applyFeed(point: point, amount: amount, boids: &boids)
 
-            case let .mutate(targetSpeciesID):
-                applyMutation(targetSpeciesID: targetSpeciesID, boids: &boids, speciesByID: &speciesByID, rng: &rng)
+            case let .mutate(targetHue):
+                applyMutation(targetHue: targetHue, boids: &boids, speciesByID: &speciesByID, rng: &rng)
 
             case let .injectSpecies(dna, count):
-                let speciesID = (speciesByID.keys.max() ?? -1) + 1
-                speciesByID[speciesID] = dna
-
-                for _ in 0..<max(1, count) {
-                    let position = SIMD2<Float>(
-                        rng.nextFloat(in: bounds.min.x...bounds.max.x),
-                        rng.nextFloat(in: bounds.min.y...bounds.max.y)
-                    )
-                    let velocity = SIMD2<Float>(
-                        rng.nextFloat(in: -70...70),
-                        rng.nextFloat(in: -70...70)
-                    )
-                    boids.append(
-                        Boid(
-                            id: nextBoidID,
-                            speciesID: speciesID,
-                            position: position,
-                            velocity: velocity,
-                            energy: rng.nextFloat(in: 0.7...1.0)
-                        )
-                    )
-                    nextBoidID += 1
-                }
+                injectSpecies(
+                    dna: dna,
+                    count: count,
+                    boids: &boids,
+                    speciesByID: &speciesByID,
+                    nextBoidID: &nextBoidID,
+                    bounds: bounds,
+                    rng: &rng
+                )
             }
         }
 
@@ -282,43 +268,137 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
     }
 
     private func applyMutation(
-        targetSpeciesID: Int?,
+        targetHue: Int?,
         boids: inout [Boid],
         speciesByID: inout [Int: SpeciesDNA],
         rng: inout DeterministicRNG
     ) {
-        let selected: Int
-        if let targetSpeciesID {
-            selected = targetSpeciesID
-        } else {
-            let counts = boids.reduce(into: [Int: Int]()) { partialResult, boid in
-                partialResult[boid.speciesID, default: 0] += 1
-            }
-
-            guard let dominant = counts.max(by: { $0.value < $1.value })?.key else {
-                return
-            }
-            selected = dominant
-        }
-
-        guard let dna = speciesByID[selected] else {
+        let counts = speciesCounts(in: boids)
+        guard let resolvedTargetHue = resolveMutationHue(
+            explicitHue: targetHue,
+            speciesCounts: counts,
+            speciesByID: speciesByID
+        ) else {
             return
         }
 
-        let baseName = normalizedMutationName(from: dna.speciesName)
-        let mutated = SpeciesDNA(
-            speciesName: "\(baseName) var",
-            hue: Int((Float(dna.hue) + rng.nextFloat(in: -20...20)).rounded()),
-            socialDistance: max(0.30, dna.socialDistance + rng.nextFloat(in: -0.08...0.10)),
-            alignmentWeight: dna.alignmentWeight + rng.nextFloat(in: -0.12...0.12),
-            cohesionWeight: min(0.95, dna.cohesionWeight + rng.nextFloat(in: -0.18...0.08)),
-            metabolismRate: dna.metabolismRate + rng.nextFloat(in: -0.08...0.10),
-            maxSpeed: dna.maxSpeed + rng.nextFloat(in: -18...18)
+        let selectedSpeciesIDs = speciesIDs(
+            forHue: resolvedTargetHue,
+            speciesCounts: counts,
+            speciesByID: speciesByID
         )
+        guard let templateSpeciesID = mostPopulatedSpeciesID(in: selectedSpeciesIDs, speciesCounts: counts),
+              let templateDNA = speciesByID[templateSpeciesID] else {
+            return
+        }
 
-        speciesByID[selected] = mutated
+        let mutated = makeMutatedDNA(from: templateDNA, targetHue: resolvedTargetHue, rng: &rng)
+        for speciesID in selectedSpeciesIDs {
+            speciesByID[speciesID] = mutated
+        }
 
-        let selectedIndices = boids.indices.filter { boids[$0].speciesID == selected }
+        applyMutationImpulse(to: &boids, speciesIDs: selectedSpeciesIDs, rng: &rng)
+    }
+
+    private func injectSpecies(
+        dna: SpeciesDNA,
+        count: Int,
+        boids: inout [Boid],
+        speciesByID: inout [Int: SpeciesDNA],
+        nextBoidID: inout Int,
+        bounds: SpatialBounds,
+        rng: inout DeterministicRNG
+    ) {
+        let speciesID = (speciesByID.keys.max() ?? -1) + 1
+        speciesByID[speciesID] = dna
+
+        for _ in 0..<max(1, count) {
+            let position = SIMD2<Float>(
+                rng.nextFloat(in: bounds.min.x...bounds.max.x),
+                rng.nextFloat(in: bounds.min.y...bounds.max.y)
+            )
+            let velocity = SIMD2<Float>(
+                rng.nextFloat(in: -70...70),
+                rng.nextFloat(in: -70...70)
+            )
+            boids.append(
+                Boid(
+                    id: nextBoidID,
+                    speciesID: speciesID,
+                    position: position,
+                    velocity: velocity,
+                    energy: rng.nextFloat(in: 0.7...1.0)
+                )
+            )
+            nextBoidID += 1
+        }
+    }
+
+    private func speciesCounts(in boids: [Boid]) -> [Int: Int] {
+        boids.reduce(into: [Int: Int]()) { partialResult, boid in
+            partialResult[boid.speciesID, default: 0] += 1
+        }
+    }
+
+    private func resolveMutationHue(
+        explicitHue: Int?,
+        speciesCounts: [Int: Int],
+        speciesByID: [Int: SpeciesDNA]
+    ) -> Int? {
+        if let explicitHue {
+            return SpeciesDNA.normalizedHue(explicitHue)
+        }
+        return dominantHue(speciesCounts: speciesCounts, speciesByID: speciesByID)
+    }
+
+    private func speciesIDs(
+        forHue hue: Int,
+        speciesCounts: [Int: Int],
+        speciesByID: [Int: SpeciesDNA]
+    ) -> [Int] {
+        speciesCounts.keys.filter { speciesID in
+            let speciesHue = SpeciesDNA.normalizedHue(speciesByID[speciesID]?.hue ?? SpeciesDNA.pioneer.hue)
+            return speciesHue == hue
+        }
+    }
+
+    private func mostPopulatedSpeciesID(in speciesIDs: [Int], speciesCounts: [Int: Int]) -> Int? {
+        speciesIDs.max(by: { lhs, rhs in
+            let lhsCount = speciesCounts[lhs, default: 0]
+            let rhsCount = speciesCounts[rhs, default: 0]
+            if lhsCount == rhsCount {
+                return lhs > rhs
+            }
+            return lhsCount < rhsCount
+        })
+    }
+
+    private func makeMutatedDNA(
+        from template: SpeciesDNA,
+        targetHue: Int,
+        rng: inout DeterministicRNG
+    ) -> SpeciesDNA {
+        let colorName = SpeciesDNA.colorName(forHue: targetHue)
+        let canonicalHue = SpeciesDNA.canonicalHue(forColorName: colorName) ?? targetHue
+
+        return SpeciesDNA(
+            speciesName: colorName,
+            hue: canonicalHue,
+            socialDistance: max(0.30, template.socialDistance + rng.nextFloat(in: -0.08...0.10)),
+            alignmentWeight: template.alignmentWeight + rng.nextFloat(in: -0.12...0.12),
+            cohesionWeight: min(0.95, template.cohesionWeight + rng.nextFloat(in: -0.18...0.08)),
+            metabolismRate: template.metabolismRate + rng.nextFloat(in: -0.08...0.10),
+            maxSpeed: template.maxSpeed + rng.nextFloat(in: -18...18)
+        )
+    }
+
+    private func applyMutationImpulse(
+        to boids: inout [Boid],
+        speciesIDs: [Int],
+        rng: inout DeterministicRNG
+    ) {
+        let selectedIDSet = Set(speciesIDs)
+        let selectedIndices = boids.indices.filter { selectedIDSet.contains(boids[$0].speciesID) }
         guard !selectedIndices.isEmpty else {
             return
         }
@@ -331,17 +411,7 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
 
         for index in selectedIndices {
             let delta = boids[index].position - centroid
-            let outwardDirection: SIMD2<Float>
-            if simd_length_squared(delta) < 0.0001 {
-                let random = SIMD2<Float>(
-                    rng.nextFloat(in: -1...1),
-                    rng.nextFloat(in: -1...1)
-                )
-                outwardDirection = simd_length_squared(random) < 0.0001 ? SIMD2<Float>(1, 0) : simd_normalize(random)
-            } else {
-                outwardDirection = simd_normalize(delta)
-            }
-
+            let outwardDirection = normalizedOrRandomDirection(from: delta, rng: &rng)
             let outwardImpulse = outwardDirection * rng.nextFloat(in: 22...46)
             let jitter = SIMD2<Float>(
                 rng.nextFloat(in: -9...9),
@@ -352,19 +422,33 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
         }
     }
 
-    private func normalizedMutationName(from rawName: String) -> String {
-        var name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        while name.hasSuffix(" var.") || name.hasSuffix(" var") {
-            if name.hasSuffix(" var.") {
-                name.removeLast(5)
-            } else {
-                name.removeLast(4)
-            }
-            name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func normalizedOrRandomDirection(from delta: SIMD2<Float>, rng: inout DeterministicRNG) -> SIMD2<Float> {
+        if simd_length_squared(delta) >= 0.0001 {
+            return simd_normalize(delta)
         }
 
-        return name.isEmpty ? "Species" : name
+        let random = SIMD2<Float>(
+            rng.nextFloat(in: -1...1),
+            rng.nextFloat(in: -1...1)
+        )
+        return simd_length_squared(random) < 0.0001 ? SIMD2<Float>(1, 0) : simd_normalize(random)
+    }
+
+    private func dominantHue(
+        speciesCounts: [Int: Int],
+        speciesByID: [Int: SpeciesDNA]
+    ) -> Int? {
+        guard !speciesCounts.isEmpty else { return nil }
+
+        var hueCounts: [Int: Int] = [:]
+        hueCounts.reserveCapacity(speciesCounts.count)
+
+        for (speciesID, count) in speciesCounts {
+            let hue = SpeciesDNA.normalizedHue(speciesByID[speciesID]?.hue ?? SpeciesDNA.pioneer.hue)
+            hueCounts[hue, default: 0] += count
+        }
+
+        return hueCounts.max(by: { $0.value < $1.value })?.key
     }
 
     private static func buildSnapshot(
@@ -376,27 +460,68 @@ public final class SimulationEngine: SimulationEngineProtocol, @unchecked Sendab
             return .empty
         }
 
-        var grouped: [Int: [Boid]] = [:]
-        grouped.reserveCapacity(speciesByID.count)
-
-        for boid in boids {
-            grouped[boid.speciesID, default: []].append(boid)
+        struct HueAggregate {
+            var totalCount: Int = 0
+            var totalEnergy: Float = 0
+            var weightedSocialDistance: Float = 0
+            var weightedAlignmentWeight: Float = 0
+            var weightedCohesionWeight: Float = 0
+            var weightedMetabolismRate: Float = 0
+            var weightedMaxSpeed: Float = 0
+            var speciesCounts: [Int: Int] = [:]
         }
 
-        let stats = grouped.map { speciesID, members in
-            let avgEnergy = members.map(\.energy).reduce(0, +) / Float(max(1, members.count))
+        var speciesCounts: [Int: Int] = [:]
+        var speciesEnergySums: [Int: Float] = [:]
+        speciesCounts.reserveCapacity(speciesByID.count)
+        speciesEnergySums.reserveCapacity(speciesByID.count)
+
+        for boid in boids {
+            speciesCounts[boid.speciesID, default: 0] += 1
+            speciesEnergySums[boid.speciesID, default: 0] += boid.energy
+        }
+
+        var groupedByHue: [Int: HueAggregate] = [:]
+        groupedByHue.reserveCapacity(speciesByID.count)
+
+        for (speciesID, count) in speciesCounts {
             let dna = speciesByID[speciesID] ?? .pioneer
+            let hue = SpeciesDNA.normalizedHue(dna.hue)
+            let energySum = speciesEnergySums[speciesID, default: 0]
+
+            var aggregate = groupedByHue[hue, default: HueAggregate()]
+            aggregate.totalCount += count
+            aggregate.totalEnergy += energySum
+            aggregate.weightedSocialDistance += dna.socialDistance * Float(count)
+            aggregate.weightedAlignmentWeight += dna.alignmentWeight * Float(count)
+            aggregate.weightedCohesionWeight += dna.cohesionWeight * Float(count)
+            aggregate.weightedMetabolismRate += dna.metabolismRate * Float(count)
+            aggregate.weightedMaxSpeed += dna.maxSpeed * Float(count)
+            aggregate.speciesCounts[speciesID, default: 0] += count
+
+            groupedByHue[hue] = aggregate
+        }
+
+        let stats = groupedByHue.map { hue, aggregate in
+            let weight = Float(max(1, aggregate.totalCount))
+            let representativeSpeciesID = aggregate.speciesCounts.max(by: { lhs, rhs in
+                if lhs.value == rhs.value {
+                    return lhs.key > rhs.key
+                }
+                return lhs.value < rhs.value
+            })?.key ?? 0
+
             return SpeciesStats(
-                speciesID: speciesID,
-                name: dna.speciesName,
-                count: members.count,
-                averageEnergy: avgEnergy,
-                hue: dna.hue,
-                socialDistance: dna.socialDistance,
-                alignmentWeight: dna.alignmentWeight,
-                cohesionWeight: dna.cohesionWeight,
-                metabolismRate: dna.metabolismRate,
-                maxSpeed: dna.maxSpeed
+                speciesID: representativeSpeciesID,
+                name: SpeciesDNA.speciesGroupName(forHue: hue),
+                count: aggregate.totalCount,
+                averageEnergy: aggregate.totalEnergy / weight,
+                hue: hue,
+                socialDistance: aggregate.weightedSocialDistance / weight,
+                alignmentWeight: aggregate.weightedAlignmentWeight / weight,
+                cohesionWeight: aggregate.weightedCohesionWeight / weight,
+                metabolismRate: aggregate.weightedMetabolismRate / weight,
+                maxSpeed: aggregate.weightedMaxSpeed / weight
             )
         }
         .sorted { $0.count > $1.count }

@@ -127,10 +127,10 @@ final class RootViewModel: ObservableObject {
 
     func enqueueMutation() {
         if let dominant = snapshot.speciesStats.first {
-            pendingCommands.append(.mutate(targetSpeciesID: dominant.speciesID))
+            pendingCommands.append(.mutate(targetHue: dominant.hue))
             actionHint = "Mutate shifted DNA of \(dominant.name): spacing, speed, and metabolism for \(dominant.count) organisms."
         } else {
-            pendingCommands.append(.mutate(targetSpeciesID: nil))
+            pendingCommands.append(.mutate(targetHue: nil))
             actionHint = "Mutate queued. Waiting for stable species clusters."
         }
     }
@@ -245,7 +245,7 @@ final class RootViewModel: ObservableObject {
         }
 
         do {
-            let text = try await withTimeout(seconds: 30) {
+            let text = try await withTimeout(seconds: 15) {
                 try await self.aiProvider.explain(question: self.analyzeQuestion, context: self.snapshot)
             }
             analyzeResponse = text

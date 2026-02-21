@@ -8,22 +8,13 @@ public enum AIStage: String, Sendable {
 
 /// Prompt templates that inject runtime ecosystem context into both AI paths.
 public enum PromptBuilder {
-    private struct HueBand {
-        let name: String
-        let aliases: [String]
-        let ranges: [ClosedRange<Int>]
+    private static var allowedColorNames: [String] {
+        SpeciesDNA.allowedColorNames
     }
 
-    private static let hueBands: [HueBand] = [
-        HueBand(name: "red", aliases: ["red", "crimson", "scarlet"], ranges: [0...20, 340...360]),
-        HueBand(name: "orange", aliases: ["orange"], ranges: [21...45]),
-        HueBand(name: "yellow", aliases: ["yellow"], ranges: [46...70]),
-        HueBand(name: "green", aliases: ["green", "lime"], ranges: [71...170]),
-        HueBand(name: "cyan", aliases: ["cyan", "teal", "aqua"], ranges: [171...200]),
-        HueBand(name: "blue", aliases: ["blue", "azure"], ranges: [201...250]),
-        HueBand(name: "purple", aliases: ["purple", "violet", "magenta"], ranges: [251...300]),
-        HueBand(name: "pink", aliases: ["pink", "rose"], ranges: [301...339])
-    ]
+    private static var allowedColorNamesText: String {
+        allowedColorNames.joined(separator: ", ")
+    }
 
     // Shared injection constraints used by both AI prompts and runtime planning.
     public static let injectPopulationRange: ClosedRange<Int> = 72...300
@@ -54,8 +45,10 @@ public enum PromptBuilder {
         At-risk species: \(atRiskSpecies.isEmpty ? "none" : atRiskSpecies)
         Top species: \(topSpecies.isEmpty ? "none" : topSpecies)
         Pressure flags: \(pressureFlags.isEmpty ? "none" : pressureFlags)
+        Allowed color names for speciesName (use EXACTLY one): \(allowedColorNamesText)
         Injection constraints: population \(injectPopulationRange.lowerBound)-\(injectPopulationRange.upperBound), species-per-inject \(injectSpeciesCountRange.lowerBound)-\(injectSpeciesCountRange.upperBound), DNA timeout \(injectDNATimeoutSecondsRange.lowerBound)-\(injectDNATimeoutSecondsRange.upperBound)s.
         Rules:
+        - speciesName must be one exact color name from the allowed list.
         - Avoid copying dominant-species behavior profile.
         - Prefer moderate-to-low metabolism when at-risk species exist.
         - Keep alignment/cohesion high enough for stable flocking.
@@ -63,24 +56,24 @@ public enum PromptBuilder {
     }
 
     public static func explainPrompt(question: String, context: EcosystemSnapshot, stage: AIStage = .analysis) -> String {
-        let requestedBands = requestedHueBands(in: question)
+        let requestedColors = requestedColorNames(in: question)
         let colorFocus: String
-        if requestedBands.isEmpty {
+        if requestedColors.isEmpty {
             colorFocus = "Color query detected: none"
         } else {
-            colorFocus = requestedBands.map { band in
+            colorFocus = requestedColors.map { colorName in
                 let matches = context.speciesStats.filter { species in
-                    hueInBand(species.hue, band: band)
+                    SpeciesDNA.colorName(forHue: species.hue) == colorName
                 }
 
                 if matches.isEmpty {
-                    return "\(band.name): no exact hue-band match in current snapshot"
+                    return "\(colorName): no exact hue-band match in current snapshot"
                 }
 
                 let rows = matches.prefix(6).map { species in
                     "\(species.name)(id \(species.speciesID), pop \(species.count), energy \(fmt2(species.averageEnergy)), hue \(species.hue))"
                 }.joined(separator: "; ")
-                return "\(band.name): \(rows)"
+                return "\(colorName): \(rows)"
             }
             .joined(separator: " | ")
         }
@@ -101,7 +94,7 @@ public enum PromptBuilder {
         Question: \(question)
         Ecosystem: \(context.totalBoids) organisms, avg energy \(fmt2(context.avgEnergy))
         Color band reference by hue:
-        red 0-20/340-360 | orange 21-45 | yellow 46-70 | green 71-170 | cyan 171-200 | blue 201-250 | purple 251-300 | pink 301-339
+        \(SpeciesDNA.colorReferenceText)
         \(colorFocus)
         Species detail table: \(speciesDetails.isEmpty ? "none" : speciesDetails)
         """
@@ -122,14 +115,18 @@ public enum PromptBuilder {
         Dominant species: \(dominant.map { "\($0.name)(\($0.count))" } ?? "none")
         At-risk species: \(atRiskSpecies.isEmpty ? "none" : atRiskSpecies)
         Top species: \(topSpecies.isEmpty ? "none" : topSpecies)
+        Allowed color names for speciesName (use EXACTLY one): \(allowedColorNamesText)
         Rules:
         - Make entries behaviorally distinct from each other.
+        - speciesName must be one exact color name from the allowed list.
+        - Use color as top-level species and represent subtype differences via parameters (maxSpeed, metabolismRate, socialDistance, alignmentWeight, cohesionWeight).
+        - At least one color should appear in multiple entries as parameter variants.
         - Avoid copying dominant-species behavior profile.
         - Prefer moderate-to-low metabolism when at-risk species exist.
         """
     }
 
-    private static func requestedHueBands(in question: String) -> [HueBand] {
+    private static func requestedColorNames(in question: String) -> [String] {
         let lower = question.lowercased()
         let tokenSet = Set(
             lower
@@ -137,32 +134,13 @@ public enum PromptBuilder {
                 .map(String.init)
         )
 
-        return hueBands.filter { band in
-            band.aliases.contains { alias in
-                let asciiWord = alias.allSatisfy { $0.isASCII && $0.isLetter }
-                return asciiWord ? tokenSet.contains(alias) : lower.contains(alias)
-            }
+        return allowedColorNames.filter { colorName in
+            tokenSet.contains(colorName)
         }
     }
 
     private static func hueLabel(for hue: Int) -> String {
-        let normalized = normalizedHue(hue)
-        if let band = hueBands.first(where: { hueInBand(normalized, band: $0) }) {
-            return band.name
-        }
-        return "unknown"
-    }
-
-    private static func hueInBand(_ hue: Int, band: HueBand) -> Bool {
-        let normalized = normalizedHue(hue)
-        return band.ranges.contains { range in
-            range.contains(normalized)
-        }
-    }
-
-    private static func normalizedHue(_ hue: Int) -> Int {
-        let value = hue % 360
-        return value < 0 ? value + 360 : value
+        SpeciesDNA.colorName(forHue: hue)
     }
 
     private static func dominantShare(in context: EcosystemSnapshot) -> Double {
