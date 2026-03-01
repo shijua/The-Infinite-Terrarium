@@ -2,6 +2,13 @@
 
 An offline, AI-assisted digital ecosystem playground built for Swift Student Challenge style constraints.
 
+## Preview
+
+<p align="center">
+  <img src="images/terrarium-overview.png" alt="Infinite Terrarium simulation overview" width="48%" />
+  <img src="images/terrarium-console.png" alt="Infinite Terrarium controls and AI console" width="48%" />
+</p>
+
 ## What This App Does
 
 `Infinite Terrarium` simulates hundreds to thousands of organisms in real time and lets you intervene with three core actions:
